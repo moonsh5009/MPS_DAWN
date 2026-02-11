@@ -41,5 +41,8 @@ if(NOT EMSCRIPTEN)
     add_subdirectory(third_party/dawn EXCLUDE_FROM_ALL)
 endif()
 
+# Add GLM library (header-only math library)
+add_subdirectory(third_party/glm)
+
 # Add source directory
 add_subdirectory(src)

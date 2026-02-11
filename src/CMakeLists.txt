@@ -1,3 +1,6 @@
+# Add core modules
+add_subdirectory(core_util)
+
 # MPS_DAWN executable
 
 # Source files
@@ -27,10 +30,14 @@ endif()
 if(NOT EMSCRIPTEN)
     # Native build: Link Dawn WebGPU library
     target_link_libraries(mps_dawn PRIVATE
+        mps::core_util
         webgpu_dawn
     )
 else()
     # WASM build: Use Emscripten's WebGPU port
+    target_link_libraries(mps_dawn PRIVATE
+        mps::core_util
+    )
     target_link_options(mps_dawn PRIVATE
         --use-port=emdawnwebgpu
     )
