@@ -1,0 +1,15 @@
+{
+    "git.ignoreLimitWarning": true,
+    "cmake.configureSettings": {
+        "CMAKE_GENERATOR_PLATFORM": "x64"
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
+    "cmake.preferredGenerators": [
+        "Visual Studio 17 2022"
+    ],
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "*.h": "cpp",
+        "*.hpp": "cpp"
+    }
+}

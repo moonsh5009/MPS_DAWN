@@ -1,0 +1,53 @@
+# Build directories
+build/
+build-*/
+out/
+
+# IDE and editor files
+.vs/
+.vscode/.cache/
+*.swp
+*.swo
+*~
+
+# Claude session data (keep prompts and guides)
+.claude/*.jsonl
+.claude/*.output
+.claude/settings.local.json
+.claude/memory/
+
+# Downloaded tools and SDKs
+third_party/depot_tools/
+third_party/emsdk/
+third_party/ninja/
+*.zip
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Compiled files
+*.exe
+*.obj
+*.o
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.wasm
+*.js
+*.html
+
+# Logs and temporary files
+*.log
+*.tmp
+*.user
+*.suo
+
+# OS specific
+.DS_Store
+Thumbs.db
