@@ -33,8 +33,8 @@ namespace mps::<namespace> {
 
 struct <Name>Config {
     std::string title = "Default";
-    util::uint32 width = 1280;
-    util::uint32 height = 720;
+    uint32 width = 1280;
+    uint32 height = 720;
 };
 
 class I<Name> {
@@ -149,7 +149,7 @@ In the top-level executable target, add `mps::<module_name>` to `target_link_lib
 
 - [ ] All files use `#pragma once`
 - [ ] Project headers before STL headers
-- [ ] Uses `util::` types (never raw `int`/`float`)
+- [ ] Uses project types (`uint32`, `float32`, etc. — never raw `int`/`float`)
 - [ ] PascalCase classes/methods, snake_case_ members
 - [ ] No indentation inside namespace blocks
 - [ ] 4 spaces, no tabs

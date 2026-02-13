@@ -31,7 +31,7 @@ src/core_render/
 ## Rules
 
 - Follow the project's cross-platform pattern (`_native`/`_wasm` splits if needed)
-- Use the project's type system (`util::uint32`, `util::mat4`, etc.)
+- Use the project's type system (`uint32`, `float32` from `mps`; `util::vec3`, `util::mat4` for math types)
 - Each module must be a static library with CMake alias (`mps::core_render`)
 - Dependencies flow downward only
 - Will depend on `core_gpu` for WebGPU access

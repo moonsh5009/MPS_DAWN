@@ -31,6 +31,6 @@ src/core_database/
 ## Rules
 
 - Follow the project's cross-platform pattern (`_native`/`_wasm` splits if needed)
-- Use the project's type system (`util::uint32`, etc.)
+- Use the project's type system (`uint32`, `float32`, etc. from `mps` namespace)
 - Each module must be a static library with CMake alias (`mps::core_database`)
 - Dependencies flow downward only

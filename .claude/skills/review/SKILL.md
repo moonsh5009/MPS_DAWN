@@ -41,8 +41,9 @@ Review code against MPS_DAWN C++20 standards. Check each category and report vio
 
 ## 4. Type System
 
-- [ ] Uses `util::uint32`, `util::float32`, etc. — never raw `int`/`float`/`size_t`
-- [ ] Math types: `util::vec3`, `util::mat4`, etc.
+- [ ] Primitives (`uint32`, `float32`, etc.) from `mps` namespace — no `util::` prefix needed
+- [ ] Math types: `util::vec3`, `util::mat4`, etc. (remain in `mps::util`)
+- [ ] Never use raw `int`/`float`/`size_t` (except at C-library API boundaries)
 - [ ] Constants from `core_util/math.h` (e.g., `PI`, `DEG_TO_RAD`)
 
 ## 5. Memory & Error Handling
@@ -75,8 +76,8 @@ Review code against MPS_DAWN C++20 standards. Check each category and report vio
 ```cpp
 struct WindowConfig {
     std::string title = "MPS_DAWN";
-    util::uint32 width = 1280;
-    util::uint32 height = 720;
+    uint32 width = 1280;
+    uint32 height = 720;
     bool resizable = true;
 };
 ```
@@ -103,6 +104,41 @@ static void Callback(GLFWwindow* w, ...) {
     if (self) self->HandleEvent(...);
 }
 ```
+
+## 8. Build Verification
+
+After code review, verify the project compiles on both platforms:
+
+### Native (Debug)
+
+```bash
+cmake -B build && cmake --build build
+```
+
+- [ ] CMake configures without errors
+- [ ] Build completes without errors (warnings from third-party libs OK)
+- [ ] Executable runs: `build\bin\x64\Debug\mps_dawn.exe`
+
+### WASM (Debug)
+
+```bash
+# Windows (requires emsdk + ninja):
+cmd //c "C:\emsdk\emsdk_env.bat >nul 2>&1 && set PATH=<ninja-path>;%PATH% && emcmake cmake -B build-wasm && cmake --build build-wasm"
+```
+
+- [ ] CMake configures with Emscripten toolchain
+- [ ] Build completes without errors
+- [ ] Output: `build-wasm/bin/wasm/mps_dawn.html`
+
+### Common Build Issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Duplicate `glfw` target | Dawn includes its own GLFW | Remove separate `third_party/glfw`; Dawn provides `glfw` target |
+| `GLM_GTX_component_wise` error | GLM experimental extension | Add `#define GLM_ENABLE_EXPERIMENTAL` before GLM `gtx` includes |
+| `webgpu/webgpu.h` not found | Missing Dawn link in CMake | Link `webgpu_dawn` for native builds |
+| `-sUSE_WEBGPU=1` invalid | Emscripten API changed | Use `--use-port=emdawnwebgpu` instead |
+| `WGPUStringView` type mismatch | emdawnwebgpu uses StringView | Use `{"string", length}` initializer |
 
 ## Review Output Format
 

@@ -21,8 +21,7 @@ Owns the `core_gpu` module. Handles WebGPU integration, Dawn vs Emscripten, surf
 #include <webgpu/webgpu.h>              // standard API (both platforms)
 
 #ifndef __EMSCRIPTEN__
-#include <webgpu/webgpu_dawn_native.h>  // Dawn extensions (native only)
-#include <dawn/dawn_proc.h>
+#include <dawn/dawn_proc.h>             // Dawn process init (native only)
 #endif
 ```
 
@@ -49,8 +48,10 @@ Platform-specific, follows `_native`/`_wasm` file split.
     metal_source.layer = GetMetalLayer(glfw_window);         // WGPUSType_SurfaceSourceMetalLayer
 #endif
 
-// WASM — HTML canvas selector
-canvas_source.selector = "#canvas";                          // WGPUSType_SurfaceSourceCanvasHTMLSelector
+// WASM — HTML canvas selector (emdawnwebgpu API)
+WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvas_source = {};
+canvas_source.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
+canvas_source.selector = {"#canvas", 7};
 ```
 
 ## WebGPU Async Callbacks

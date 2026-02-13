@@ -116,8 +116,8 @@ Same pattern for chained or nested calls:
 
 ```cpp
 InputManager::GetInstance().SetMousePosition(
-    static_cast<float>(xpos),
-    static_cast<float>(ypos)
+    static_cast<float32>(xpos),
+    static_cast<float32>(ypos)
 );
 ```
 
@@ -145,8 +145,8 @@ Mark getters with `[[nodiscard]]` so callers cannot silently discard the result:
 [[nodiscard]] bool ShouldClose() const;
 [[nodiscard]] bool IsMinimized() const;
 [[nodiscard]] bool IsFocused() const;
-[[nodiscard]] util::uint32 GetWidth() const;
-[[nodiscard]] float GetAspectRatio() const;
+[[nodiscard]] uint32 GetWidth() const;
+[[nodiscard]] float32 GetAspectRatio() const;
 ```
 
 > Baseline: `window_native.h:22-28`
@@ -174,7 +174,7 @@ Mark getters with `[[nodiscard]]` so callers cannot silently discard the result:
 |------|---------|---------|
 | Non-trivial (struct, string) | `const Type&` | `const WindowConfig& config` |
 | Read-only string (no storage) | `std::string_view` | `std::string_view name` |
-| Primitive (`bool`, numeric) | by value | `bool fullscreen`, `float x` |
+| Primitive (`bool`, numeric) | by value | `bool fullscreen`, `float32 x` |
 
 Use `std::string_view` when the function only reads the string and does not store it. Use `const std::string&` when the function stores or forwards it.
 
@@ -210,8 +210,8 @@ util::vec2 mouse_scroll_ = {0.0f, 0.0f};
 ```cpp
 struct WindowConfig {
     std::string title = "MPS_DAWN";
-    util::uint32 width = 1280;
-    util::uint32 height = 720;
+    uint32 width = 1280;
+    uint32 height = 720;
     bool resizable = true;
     bool fullscreen = false;
 };
@@ -224,20 +224,20 @@ struct WindowConfig {
 Prefer `constexpr` over `const` for values known at compile time:
 
 ```cpp
-constexpr float PI = 3.14159265358979323846f;
-constexpr float TWO_PI = 2.0f * PI;
-constexpr float DEG_TO_RAD = PI / 180.0f;
-constexpr float RAD_TO_DEG = 180.0f / PI;
+constexpr float32 PI = 3.14159265358979323846f;
+constexpr float32 TWO_PI = 2.0f * PI;
+constexpr float32 DEG_TO_RAD = PI / 180.0f;
+constexpr float32 RAD_TO_DEG = 180.0f / PI;
 ```
 
 Use `constexpr` functions for computations that can be evaluated at compile time:
 
 ```cpp
-constexpr float Radians(float degrees) {
+constexpr float32 Radians(float32 degrees) {
     return degrees * DEG_TO_RAD;
 }
 
-constexpr float Degrees(float radians) {
+constexpr float32 Degrees(float32 radians) {
     return radians * RAD_TO_DEG;
 }
 ```
@@ -269,13 +269,13 @@ Logger& operator=(Logger&&) = delete;
 Always `enum class` with explicit underlying type from project types:
 
 ```cpp
-enum class Key : util::uint16 {
+enum class Key : uint16 {
     Unknown = 0,
     A = 65, B = 66, C = 67,
     // ...
 };
 
-enum class MouseButton : util::uint8 {
+enum class MouseButton : uint8 {
     Left = 0,
     Right = 1,
     Middle = 2,
@@ -377,7 +377,7 @@ auto surface = wgpuInstanceCreateSurface(instance, &surfaceDesc);
 
 // Bad — type is not obvious, spell it out
 auto x = GetValue();           // What type is this?
-util::uint32 width = GetWidth(); // Explicit is clearer here
+uint32 width = GetWidth(); // Explicit is clearer here
 ```
 
 ### Structured bindings (C++17)

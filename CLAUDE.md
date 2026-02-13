@@ -13,8 +13,10 @@ cmake -B build && cmake --build build
 build\bin\x64\Debug\mps_dawn.exe     # Windows
 ./build/bin/x64/Debug/mps_dawn       # Linux/macOS
 
-# WASM (requires Emscripten)
+# WASM (requires Emscripten + ninja)
+# Windows: run inside emsdk_env.bat shell
 emcmake cmake -B build-wasm && cmake --build build-wasm
+# Output: build-wasm/bin/wasm/mps_dawn.html
 ```
 
 No test framework yet; testing is manual (build and run).
@@ -33,7 +35,7 @@ src/main.cpp (executable: mps_dawn)
 
 ### Third-Party Dependencies (`third_party/`, git submodules)
 
-- **Dawn** — WebGPU (native only) | **GLFW** — windowing (native only) | **GLM** — math (all platforms)
+- **Dawn** — WebGPU + GLFW windowing (native only) | **GLM** — math (all platforms)
 
 ### Cross-Platform Pattern
 
@@ -41,7 +43,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 
 ### Namespaces
 
-`mps::util` (core_util) | `mps::platform` (core_platform)
+`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform)
 
 ## Key Coding Conventions
 
@@ -49,7 +51,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 
 - **C++20** strictly enforced
 - **Naming**: `PascalCase` classes/methods, `snake_case_` private members (trailing `_`), `IPrefix` interfaces
-- **Types**: Always `util::uint32`, `util::vec3`, etc. — never raw `int`/`float`/`size_t`
+- **Types**: Primitives (`uint32`, `float32`, etc.) are in `mps` namespace — no `util::` prefix needed. Math types (`util::vec3`, `util::mat4`) remain in `mps::util`. Never use raw `int`/`float`/`size_t`.
 - **Headers**: `#pragma once`; project headers first, then STL
 - **Memory**: `std::unique_ptr` ownership, raw pointers only for non-owning refs
 - **Logging**: `LogInfo(...)`, `LogError(...)` from `core_util/logger.h`

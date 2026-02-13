@@ -9,12 +9,14 @@ Always use types from `core_util/types.h` and `core_util/math.h`. Never use raw 
 
 ## Primitives (`core_util/types.h`)
 
+Defined in `mps` namespace (no `util::` prefix needed). Also re-exported to `mps::util` for backward compatibility.
+
 | Category | Types |
 |----------|-------|
-| Unsigned int | `util::uint8`, `uint16`, `uint32`, `uint64` |
-| Signed int | `util::int8`, `int16`, `int32`, `int64` |
-| Float | `util::float32`, `float64` |
-| Other | `util::size_t`, `util::byte` |
+| Unsigned int | `uint8`, `uint16`, `uint32`, `uint64` |
+| Signed int | `int8`, `int16`, `int32`, `int64` |
+| Float | `float32`, `float64` |
+| Other | `size_t`, `byte` |
 
 ## Math Types (`core_util/math.h`, GLM-based)
 

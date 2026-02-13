@@ -20,7 +20,7 @@ build/lib/x64/{Debug,Release}/          # Static libraries (.lib, .a)
 
 ## Third-Party Dependencies
 
-Current: **Dawn** (native), **GLFW** (native), **GLM** (all) — git submodules in `third_party/`.
+Current: **Dawn** (native, includes GLFW), **GLM** (all) — git submodules in `third_party/`.
 
 ## Git Workflow
 
