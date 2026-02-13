@@ -1,11 +1,25 @@
 # core_platform - Platform abstraction layer
 
+# Source files (common)
+set(CORE_PLATFORM_SOURCES
+    window.cpp
+    input.cpp
+)
+
+# Add platform-specific sources
+if(EMSCRIPTEN)
+    list(APPEND CORE_PLATFORM_SOURCES
+        window_wasm.cpp
+    )
+else()
+    list(APPEND CORE_PLATFORM_SOURCES
+        window_native.cpp
+    )
+endif()
+
 # Create core_platform library
 add_library(core_platform STATIC
-    # Source files will be added here
-    # window_native.cpp (for native builds)
-    # window_wasm.cpp (for WASM builds)
-    # input.cpp
+    ${CORE_PLATFORM_SOURCES}
 )
 
 # Set target properties
@@ -23,6 +37,17 @@ target_include_directories(core_platform PUBLIC
 target_link_libraries(core_platform PUBLIC
     mps::core_util
 )
+
+# Link platform-specific dependencies
+if(EMSCRIPTEN)
+    target_compile_options(core_platform PUBLIC --use-port=emdawnwebgpu)
+    target_link_options(core_platform PUBLIC --use-port=emdawnwebgpu)
+else()
+    target_link_libraries(core_platform PUBLIC
+        glfw
+        webgpu_dawn
+    )
+endif()
 
 # Create alias for namespace-style usage
 add_library(mps::core_platform ALIAS core_platform)
