@@ -24,6 +24,28 @@
             "environment": [],
             "console": "integratedTerminal",
             "preLaunchTask": "CMake: Build (Release)"
+        },
+        {
+            "name": "(WASM) Debug",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:8080/mps_dawn.html",
+            "webRoot": "${workspaceFolder}/build-wasm/bin/wasm",
+            "preLaunchTask": "WASM: Build (Debug)",
+            "sourceMapPathOverrides": {
+                "/*": "${workspaceFolder}/*"
+            }
+        },
+        {
+            "name": "(WASM) Release",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:8080/mps_dawn.html",
+            "webRoot": "${workspaceFolder}/build-wasm-release/bin/wasm",
+            "preLaunchTask": "WASM: Build (Release)",
+            "sourceMapPathOverrides": {
+                "/*": "${workspaceFolder}/*"
+            }
         }
     ]
 }

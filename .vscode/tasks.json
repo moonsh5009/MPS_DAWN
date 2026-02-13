@@ -68,6 +68,78 @@
                 "clean"
             ],
             "problemMatcher": []
+        },
+        {
+            "label": "WASM: Configure",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "C:\\emsdk\\emsdk_env.bat >nul 2>&1 && set PATH=C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python313\\Scripts;%PATH% && emcmake cmake -S ${workspaceFolder} -B ${workspaceFolder}/build-wasm"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "WASM: Build (Debug)",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "C:\\emsdk\\emsdk_env.bat >nul 2>&1 && set PATH=C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python313\\Scripts;%PATH% && cmake --build ${workspaceFolder}/build-wasm"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "dependsOn": ["WASM: Configure"]
+        },
+        {
+            "label": "WASM: Build (Release)",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "C:\\emsdk\\emsdk_env.bat >nul 2>&1 && set PATH=C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python313\\Scripts;%PATH% && cmake --build ${workspaceFolder}/build-wasm-release"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "dependsOn": ["WASM: Configure (Release)"]
+        },
+        {
+            "label": "WASM: Configure (Release)",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "C:\\emsdk\\emsdk_env.bat >nul 2>&1 && set PATH=C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python313\\Scripts;%PATH% && emcmake cmake -S ${workspaceFolder} -B ${workspaceFolder}/build-wasm-release -DCMAKE_BUILD_TYPE=Release"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "WASM: Clean",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "C:\\emsdk\\emsdk_env.bat >nul 2>&1 && set PATH=C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python313\\Scripts;%PATH% && cmake --build ${workspaceFolder}/build-wasm --target clean"
+            ],
+            "problemMatcher": []
         }
     ]
 }
