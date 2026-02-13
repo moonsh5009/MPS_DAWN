@@ -4,7 +4,6 @@
 #include <cstddef>
 
 namespace mps {
-namespace util {
 
 // Unsigned integer types
 using uint8  = std::uint8_t;
@@ -27,6 +26,22 @@ using size_t = std::size_t;
 
 // Byte type
 using byte = std::byte;
+
+namespace util {
+
+// Re-export into util for backward compatibility
+using mps::uint8;
+using mps::uint16;
+using mps::uint32;
+using mps::uint64;
+using mps::int8;
+using mps::int16;
+using mps::int32;
+using mps::int64;
+using mps::float32;
+using mps::float64;
+using mps::size_t;
+using mps::byte;
 
 }  // namespace util
 }  // namespace mps

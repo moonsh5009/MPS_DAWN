@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core_util/types.h"
 #include <chrono>
 #include <string>
 
@@ -20,13 +21,13 @@ public:
     void Reset();
 
     // Get elapsed time in seconds
-    double GetElapsedSeconds() const;
+    float64 GetElapsedSeconds() const;
 
     // Get elapsed time in milliseconds
-    double GetElapsedMilliseconds() const;
+    float64 GetElapsedMilliseconds() const;
 
     // Get elapsed time in microseconds
-    double GetElapsedMicroseconds() const;
+    float64 GetElapsedMicroseconds() const;
 
     // Check if timer is running
     bool IsRunning() const { return is_running_; }

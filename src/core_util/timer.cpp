@@ -26,23 +26,23 @@ void Timer::Reset() {
     is_running_ = false;
 }
 
-double Timer::GetElapsedSeconds() const {
+float64 Timer::GetElapsedSeconds() const {
     TimePoint end_time = is_running_ ? Clock::now() : stop_time_;
-    auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(
+    auto duration = std::chrono::duration_cast<std::chrono::duration<float64>>(
         end_time - start_time_);
     return duration.count();
 }
 
-double Timer::GetElapsedMilliseconds() const {
+float64 Timer::GetElapsedMilliseconds() const {
     TimePoint end_time = is_running_ ? Clock::now() : stop_time_;
-    auto duration = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(
+    auto duration = std::chrono::duration_cast<std::chrono::duration<float64, std::milli>>(
         end_time - start_time_);
     return duration.count();
 }
 
-double Timer::GetElapsedMicroseconds() const {
+float64 Timer::GetElapsedMicroseconds() const {
     TimePoint end_time = is_running_ ? Clock::now() : stop_time_;
-    auto duration = std::chrono::duration_cast<std::chrono::duration<double, std::micro>>(
+    auto duration = std::chrono::duration_cast<std::chrono::duration<float64, std::micro>>(
         end_time - start_time_);
     return duration.count();
 }

@@ -16,8 +16,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/x64/Release)
 
 # Compiler-specific settings
 if(MSVC)
-    # Fix PDB file conflicts during parallel builds
-    add_compile_options(/FS)
+    add_compile_options(/FS)      # Fix PDB file conflicts during parallel builds
+    add_compile_options(/wd4100)  # Suppress unused parameter warnings
+else()
+    add_compile_options(-Wno-unused-parameter)
 endif()
 
 # WASM-specific configuration
@@ -43,6 +45,9 @@ endif()
 
 # Add GLM library (header-only math library)
 add_subdirectory(third_party/glm)
+
+# GLFW is provided by Dawn (third_party/dawn/third_party/glfw)
+# No separate add_subdirectory needed for native builds
 
 # Add source directory
 add_subdirectory(src)
