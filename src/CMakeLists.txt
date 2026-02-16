@@ -1,13 +1,13 @@
 # Add core modules
 add_subdirectory(core_util)
 add_subdirectory(core_platform)
+add_subdirectory(core_gpu)
 
 # MPS_DAWN executable
 
 # Source files
 set(SOURCES
     main.cpp
-    # Add more source files here as the project grows
 )
 
 # Create executable
@@ -27,26 +27,9 @@ else()
     )
 endif()
 
-# Link libraries
-if(NOT EMSCRIPTEN)
-    # Native build: Link Dawn WebGPU library
-    target_link_libraries(mps_dawn PRIVATE
-        mps::core_util
-        mps::core_platform
-        webgpu_dawn
-    )
-else()
-    # WASM build: Use Emscripten's WebGPU port
-    target_link_libraries(mps_dawn PRIVATE
-        mps::core_util
-        mps::core_platform
-    )
-    target_link_options(mps_dawn PRIVATE
-        --use-port=emdawnwebgpu
-    )
-endif()
-
-# Include directories (if needed in the future)
-# target_include_directories(mps_dawn PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}
-# )
+# Link libraries (webgpu_dawn propagates transitively through core_gpu)
+target_link_libraries(mps_dawn PRIVATE
+    mps::core_util
+    mps::core_platform
+    mps::core_gpu
+)

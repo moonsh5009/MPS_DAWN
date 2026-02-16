@@ -1,35 +1,31 @@
+#include "core_gpu/gpu_core.h"
 #include "core_util/logger.h"
-#include "core_util/timer.h"
-#include "core_util/math.h"
 #include "core_util/types.h"
 
 using namespace mps::util;
+using namespace mps::gpu;
 
 int main() {
-    // Test Logger
-    LogInfo("MPS_DAWN started successfully!");
-    LogInfo("Dawn library linked successfully!");
+    LogInfo("MPS_DAWN starting...");
 
-    // Test Timer
-    Timer timer;
-    timer.Start();
+    // Initialize GPU
+    auto& gpu = GPUCore::GetInstance();
+    if (!gpu.Initialize()) {
+        LogError("Failed to initialize GPU");
+        return 1;
+    }
 
-    // Test Math
-    vec3 pos(1.0f, 2.0f, 3.0f);
-    vec3 normalized = Normalize(pos);
+    // Native: already ready. WASM: poll until ready.
+    while (!gpu.IsInitialized()) {
+        gpu.ProcessEvents();
+    }
 
-    LogInfo("Position: (", pos.x, ", ", pos.y, ", ", pos.z, ")");
-    LogInfo("Normalized: (", normalized.x, ", ", normalized.y, ", ", normalized.z, ")");
-    LogInfo("Length: ", Length(pos));
+    LogInfo("GPU initialized: ", gpu.GetAdapterName());
+    LogInfo("Backend: ", gpu.GetBackendType());
 
-    // Test Types
-    uint32 count = 100;
-    float32 value = 3.14f;
+    // Cleanup
+    gpu.Shutdown();
 
-    LogInfo("Count: ", count, ", Value: ", value);
-
-    timer.Stop();
-    LogInfo("Execution time: ", timer.GetElapsedMilliseconds(), " ms");
-
+    LogInfo("MPS_DAWN finished.");
     return 0;
 }

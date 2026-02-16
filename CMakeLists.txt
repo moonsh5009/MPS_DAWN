@@ -35,6 +35,7 @@ endif()
 # Dawn library configuration
 set(DAWN_FETCH_DEPENDENCIES ON CACHE BOOL "Fetch Dawn dependencies" FORCE)
 set(DAWN_BUILD_SAMPLES OFF CACHE BOOL "Build Dawn samples" FORCE)
+set(DAWN_FORCE_SYSTEM_COMPONENT_LOAD ON CACHE BOOL "Load system DLLs from System32" FORCE)
 set(TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "Build Tint command-line tools" FORCE)
 set(TINT_BUILD_TESTS OFF CACHE BOOL "Build Tint tests" FORCE)
 

@@ -2,14 +2,11 @@
 
 # Create core_gpu library
 add_library(core_gpu STATIC
-    # Source files will be added here
-    # device.cpp
-    # buffer.cpp
-    # texture.cpp
-    # pipeline.cpp
-    # shader.cpp
-    # command.cpp
-    # sync.cpp
+    gpu_core.cpp
+    gpu_buffer.cpp
+    gpu_shader.cpp
+    gpu_texture.cpp
+    gpu_sampler.cpp
 )
 
 # Set target properties
@@ -28,11 +25,14 @@ target_link_libraries(core_gpu PUBLIC
     mps::core_util
 )
 
-# Link Dawn WebGPU (only for native builds)
+# Platform-specific WebGPU linkage
 if(NOT EMSCRIPTEN)
     target_link_libraries(core_gpu PUBLIC
         webgpu_dawn
     )
+else()
+    target_compile_options(core_gpu PUBLIC --use-port=emdawnwebgpu)
+    target_link_options(core_gpu PUBLIC --use-port=emdawnwebgpu)
 endif()
 
 # Create alias for namespace-style usage
