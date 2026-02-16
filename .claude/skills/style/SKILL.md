@@ -108,7 +108,7 @@ window_ = glfwCreateWindow(
 );
 ```
 
-> Source: `window_native.cpp:44-50`
+> Source: `window_native.cpp:40-46`
 
 ### Multi-line function calls
 
@@ -121,7 +121,7 @@ InputManager::GetInstance().SetMousePosition(
 );
 ```
 
-> Source: `window_native.cpp:215-218`
+> Source: `window_native.cpp:219-222`
 
 ### Blank lines
 
@@ -242,7 +242,7 @@ constexpr float32 Degrees(float32 radians) {
 }
 ```
 
-> Baseline: `math.h:35-39` (constants already `constexpr`; utility functions can be upgraded)
+> Baseline: `math.h:38-42` (constants already `constexpr`; utility functions can be upgraded)
 
 ### `= default` and `= delete`
 
@@ -416,7 +416,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 }
 ```
 
-> Source: `window_native.cpp:198-203`
+> Source: `window_native.cpp:202-207`
 
 **Do NOT** use `(void)param` casts or `[[maybe_unused]]` for unused parameters.
 
@@ -486,7 +486,7 @@ private:
 }
 ```
 
-> Baseline: `input.h:114-116`
+> Baseline: `input.h:112-114`
 
 ### Template convenience functions
 

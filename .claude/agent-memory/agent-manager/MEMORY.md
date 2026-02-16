@@ -18,5 +18,5 @@ Domain-based over role-based: each agent owns specific modules (e.g., "GPU Agent
 
 ## Pending Work
 
-- Fill in gpu/database/render/simulate agents as modules are implemented
+- Fill in database/render/simulate agents as modules are implemented (gpu agent updated 2026-02-14)
 - Refine agent boundaries if overlap is discovered

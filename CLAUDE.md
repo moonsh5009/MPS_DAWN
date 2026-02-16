@@ -29,9 +29,12 @@ C++20 WebGPU graphics engine using Dawn (native) and Emscripten (WASM). CMake st
 
 ```
 src/main.cpp (executable: mps_dawn)
+  ├── core_gpu        (mps::core_gpu)      — WebGPU abstraction (device, buffers, shaders, textures, samplers)
   ├── core_platform   (mps::core_platform) — window, input
   └── core_util       (mps::core_util)     — types, logger, timer, math
 ```
+
+Stub modules (CMakeLists.txt only, no sources yet): `core_database`, `core_render`, `core_simulate`
 
 ### Third-Party Dependencies (`third_party/`, git submodules)
 
@@ -43,7 +46,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 
 ### Namespaces
 
-`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform)
+`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu)
 
 ## Key Coding Conventions
 
@@ -67,7 +70,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | *(omit for project-wide)*
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | *(omit for project-wide)*
 
 ## Agent System
 

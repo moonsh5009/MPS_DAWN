@@ -22,6 +22,18 @@ build/lib/x64/{Debug,Release}/          # Static libraries (.lib, .a)
 
 Current: **Dawn** (native, includes GLFW), **GLM** (all) — git submodules in `third_party/`.
 
+### Dawn CMake Settings
+
+Key cache variables set in root `CMakeLists.txt`:
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `DAWN_FETCH_DEPENDENCIES` | ON | Auto-fetch Dawn's transitive deps |
+| `DAWN_BUILD_SAMPLES` | OFF | Skip sample programs |
+| `DAWN_FORCE_SYSTEM_COMPONENT_LOAD` | ON | Load DLLs from System32 (avoids path mismatch with custom output dirs) |
+| `TINT_BUILD_CMD_TOOLS` | OFF | Skip Tint CLI tools |
+| `TINT_BUILD_TESTS` | OFF | Skip Tint tests |
+
 ## Git Workflow
 
 ### Commit Format
@@ -31,7 +43,7 @@ Current: **Dawn** (native, includes GLFW), **GLM** (all) — git submodules in `
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | *(omit for project-wide)*
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | *(omit for project-wide)*
 
 Examples: `feat(core_platform): add input manager with keyboard and mouse support`, `chore: add GLFW as git submodule`
 
