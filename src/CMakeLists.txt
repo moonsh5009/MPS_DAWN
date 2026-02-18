@@ -2,6 +2,10 @@
 add_subdirectory(core_util)
 add_subdirectory(core_platform)
 add_subdirectory(core_gpu)
+add_subdirectory(core_database)
+add_subdirectory(core_simulate)
+add_subdirectory(core_render)
+add_subdirectory(core_system)
 
 # MPS_DAWN executable
 
@@ -32,4 +36,5 @@ target_link_libraries(mps_dawn PRIVATE
     mps::core_util
     mps::core_platform
     mps::core_gpu
+    mps::core_system
 )

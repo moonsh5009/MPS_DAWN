@@ -2,9 +2,7 @@
 
 # Create core_simulate library
 add_library(core_simulate STATIC
-    # Source files will be added here
-    # manager.cpp
-    # scheduler.cpp
+    device_db.cpp
 )
 
 # Set target properties

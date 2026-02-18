@@ -2,12 +2,9 @@
 
 # Create core_database library
 add_library(core_database STATIC
-    # Source files will be added here
-    # database.cpp
-    # transaction.cpp
-    # query.cpp
-    # storage.cpp
-    # cache.cpp
+    entity.cpp
+    transaction.cpp
+    database.cpp
 )
 
 # Set target properties
