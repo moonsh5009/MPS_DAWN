@@ -33,12 +33,13 @@ src/main.cpp (executable: mps_dawn)
   │     ├── core_database  (mps::core_database)  — host ECS (entities, components, transactions, undo/redo)
   │     ├── core_simulate  (mps::core_simulate)  — device DB (GPU buffer mirrors) + ISimulator interface
   │     └── core_render    (mps::core_render)    — rendering pipeline (camera, passes) + IObjectRenderer interface
-  ├── core_gpu       (mps::core_gpu)       — WebGPU abstraction (device, buffers, shaders, textures, builders, surface)
+  ├── core_gpu       (mps::core_gpu)       — WebGPU abstraction (device, buffers, shaders, textures, compute, builders, surface)
   ├── core_platform  (mps::core_platform)  — window, input
   ├── core_util      (mps::core_util)      — types, logger, timer, math
-  └── ext_sample     (mps::ext_sample)     — sample extension (links core_system)
+  └── ext_cloth      (mps::ext_cloth)      — cloth simulation extension (links core_system)
 
-extensions/ext_sample/   — static library plugin, registers components + simulator + renderer
+extensions/ext_cloth/    — implicit Euler cloth sim (Newton-Raphson + CG solver on GPU, spring forces, normals)
+extensions/ext_sample/   — minimal reference extension (not linked in main.cpp)
 ```
 
 ### Extension System
@@ -61,7 +62,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 
 ### Namespaces
 
-`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system) | `ext_sample` (sample extension — not under `mps`)
+`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system) | `ext_cloth` / `ext_sample` (extensions — not under `mps`)
 
 ## Key Coding Conventions
 
@@ -85,7 +86,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_sample` | *(omit for project-wide)*
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_cloth` | `ext_sample` | *(omit for project-wide)*
 
 ## Agent System
 
@@ -95,6 +96,7 @@ Native custom subagents in `.claude/agents/*.md` (YAML frontmatter). Auto-delega
 |-------|-------|---------|
 | agent-manager | Agent system, CLAUDE.md | — |
 | dev-environment | CMake, Git, dependencies | — |
+| build-debug | Build, run, debug, fix runtime errors | — (cross-module) |
 | module-management | Architecture, coding standards, types | core_util, core_platform |
 | gpu | WebGPU / Dawn, builders, surface, shaders | core_gpu |
 | database | Host ECS, transactions, undo/redo | core_database |

@@ -1,6 +1,6 @@
 ---
 name: simulate
-description: Simulation and scheduling system. Owns core_simulate module. Use when implementing or modifying simulation logic.
+description: Device DB (GPU buffer mirrors) and ISimulator interface. Owns core_simulate module. Use when implementing or modifying simulation logic or GPU buffer sync.
 model: opus
 memory: project
 ---

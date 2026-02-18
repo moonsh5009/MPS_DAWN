@@ -38,6 +38,8 @@ class System {
 
     void Undo();
     void Redo();
+    bool CanUndo() const;
+    bool CanRedo() const;
 
     // ECS access
     const database::Database& GetDatabase() const;

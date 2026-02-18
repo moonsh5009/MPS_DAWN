@@ -237,7 +237,7 @@ constexpr float32 Degrees(float32 radians) {
 }
 ```
 
-> Baseline: `math.h:38-42` (constants already `constexpr`; utility functions can be upgraded)
+> Baseline: `math.h:39-43` (constants already `constexpr`; utility functions can be upgraded)
 
 ### `= default` and `= delete`
 

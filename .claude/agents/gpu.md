@@ -24,7 +24,9 @@ src/core_gpu/
 ├── bind_group_builder.h/cpp        # Fluent WGPUBindGroup builder (buffer/texture/sampler)
 ├── pipeline_layout_builder.h/cpp   # Fluent WGPUPipelineLayout builder
 ├── surface_manager.h/cpp           # Surface configure/present/acquire/resize
-└── shader_loader.h/cpp             # WGSL file loader with #import directive support
+├── shader_loader.h/cpp             # WGSL file loader with #import directive support
+├── compute_pipeline_builder.h/cpp  # Fluent WGPUComputePipeline builder
+└── compute_encoder.h/cpp           # Compute pass encoding utilities
 ```
 
 ## WebGPU Integration
@@ -206,6 +208,19 @@ Fluent rvalue-reference API (`Builder().Method().Build()`):
 - **BindGroupLayoutBuilder**: `AddBinding(binding, stage, type)` → `Build()` → `WGPUBindGroupLayout`
 - **BindGroupBuilder**: `AddBuffer/AddTextureView/AddSampler(binding, handle)` → `Build(layout)` → `WGPUBindGroup`
 - **PipelineLayoutBuilder**: `AddBindGroupLayout(layout)` → `Build()` → `WGPUPipelineLayout`
+- **ComputePipelineBuilder**: `SetPipelineLayout(layout)`, `SetComputeShader(module, entry)` → `Build()` → `WGPUComputePipeline`
+
+## ComputeEncoder
+
+Wraps `WGPUComputePassEncoder` for dispatch convenience:
+
+```cpp
+gpu::ComputeEncoder encoder(compute_pass);
+encoder.SetPipeline(pipeline);
+encoder.SetBindGroup(0, bind_group);
+encoder.Dispatch(workgroup_count);
+encoder.DispatchIndirect(indirect_buffer);  // GPU-driven workgroup count
+```
 
 ## SurfaceManager
 

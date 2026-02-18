@@ -94,10 +94,12 @@ Implementation:
 #include "<module_name>/<name>_native.h"
 #include "core_util/logger.h"
 
+using namespace mps::util;
+
 namespace mps::<namespace> {
 
 bool <Name>Native::Initialize(const <Name>Config& config) {
-    util::LogInfo("[<Name>Native] Initialize");
+    LogInfo("[<Name>Native] Initialize");
     return true;
 }
 
