@@ -1,91 +1,214 @@
-#include "core_system/system.h"
+#include "core_platform/window.h"
+#include "core_platform/input.h"
 #include "core_gpu/gpu_core.h"
+#include "core_gpu/gpu_buffer.h"
+#include "core_render/render_engine.h"
+#include "core_gpu/shader_loader.h"
+#include "core_gpu/bind_group_layout_builder.h"
+#include "core_gpu/bind_group_builder.h"
+#include "core_gpu/pipeline_layout_builder.h"
+#include "core_render/pipeline/render_pipeline_builder.h"
+#include "core_render/pass/render_pass_builder.h"
+#include "core_render/pass/render_encoder.h"
+#include "core_render/uniform/camera_uniform.h"
 #include "core_util/logger.h"
 #include "core_util/types.h"
-#include <stdexcept>
+#include "core_util/timer.h"
+#include <webgpu/webgpu.h>
 
 using namespace mps;
 using namespace mps::util;
 using namespace mps::gpu;
-using namespace mps::database;
-using namespace mps::system;
+using namespace mps::render;
+using namespace mps::platform;
 
-// Test component types
-struct Position { float32 x, y, z; };
-struct Velocity { float32 x, y, z; };
+// Vertex structure for colored cube
+struct Vertex {
+    float32 position[3];
+    float32 color[4];
+};
 
 int main() {
     LogInfo("MPS_DAWN starting...");
 
-    // Initialize GPU
-    auto& gpu = GPUCore::GetInstance();
-    if (!gpu.Initialize()) {
-        LogError("Failed to initialize GPU");
+    // --- Create window ---
+    auto window = IWindow::Create();
+    WindowConfig win_config;
+    win_config.title = "MPS_DAWN - Render Engine";
+    win_config.width = 1280;
+    win_config.height = 720;
+    if (!window->Initialize(win_config)) {
+        LogError("Failed to initialize window");
         return 1;
     }
 
-    // Native: already ready. WASM: poll until ready.
+    // --- Initialize GPU with surface ---
+    auto& gpu = GPUCore::GetInstance();
+    WGPUSurface surface = gpu.CreateSurface(window->GetNativeWindowHandle(), window->GetNativeDisplayHandle());
+    if (!gpu.Initialize({}, surface)) {
+        LogError("Failed to initialize GPU");
+        return 1;
+    }
     while (!gpu.IsInitialized()) {
         gpu.ProcessEvents();
     }
-
     LogInfo("GPU initialized: ", gpu.GetAdapterName());
     LogInfo("Backend: ", gpu.GetBackendType());
 
-    // --- System integration test ---
-    LogInfo("--- System integration test ---");
+    // --- Initialize RenderEngine ---
+    RenderEngine engine;
+    RenderEngineConfig render_config;
+    render_config.clear_color = {0.1, 0.1, 0.15, 1.0};
+    engine.Initialize(surface, window->GetWidth(), window->GetHeight(), render_config);
 
-    System sys;
-    sys.RegisterComponent<Position>(BufferUsage::Vertex, "positions");
-    sys.RegisterComponent<Velocity>(BufferUsage::None, "velocities");
+    // --- Create cube geometry ---
+    // Cube vertices: position (xyz) + color (rgba)
+    Vertex cube_vertices[] = {
+        // Front face (red)
+        {{-0.5f, -0.5f,  0.5f}, {0.9f, 0.2f, 0.2f, 1.0f}},
+        {{ 0.5f, -0.5f,  0.5f}, {0.9f, 0.2f, 0.2f, 1.0f}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.9f, 0.3f, 0.3f, 1.0f}},
+        {{-0.5f,  0.5f,  0.5f}, {0.9f, 0.3f, 0.3f, 1.0f}},
+        // Back face (green)
+        {{ 0.5f, -0.5f, -0.5f}, {0.2f, 0.9f, 0.2f, 1.0f}},
+        {{-0.5f, -0.5f, -0.5f}, {0.2f, 0.9f, 0.2f, 1.0f}},
+        {{-0.5f,  0.5f, -0.5f}, {0.3f, 0.9f, 0.3f, 1.0f}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.3f, 0.9f, 0.3f, 1.0f}},
+        // Top face (blue)
+        {{-0.5f,  0.5f,  0.5f}, {0.2f, 0.2f, 0.9f, 1.0f}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.2f, 0.2f, 0.9f, 1.0f}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.3f, 0.3f, 0.9f, 1.0f}},
+        {{-0.5f,  0.5f, -0.5f}, {0.3f, 0.3f, 0.9f, 1.0f}},
+        // Bottom face (yellow)
+        {{-0.5f, -0.5f, -0.5f}, {0.9f, 0.9f, 0.2f, 1.0f}},
+        {{ 0.5f, -0.5f, -0.5f}, {0.9f, 0.9f, 0.2f, 1.0f}},
+        {{ 0.5f, -0.5f,  0.5f}, {0.9f, 0.9f, 0.3f, 1.0f}},
+        {{-0.5f, -0.5f,  0.5f}, {0.9f, 0.9f, 0.3f, 1.0f}},
+        // Right face (magenta)
+        {{ 0.5f, -0.5f,  0.5f}, {0.9f, 0.2f, 0.9f, 1.0f}},
+        {{ 0.5f, -0.5f, -0.5f}, {0.9f, 0.2f, 0.9f, 1.0f}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.9f, 0.3f, 0.9f, 1.0f}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.9f, 0.3f, 0.9f, 1.0f}},
+        // Left face (cyan)
+        {{-0.5f, -0.5f, -0.5f}, {0.2f, 0.9f, 0.9f, 1.0f}},
+        {{-0.5f, -0.5f,  0.5f}, {0.2f, 0.9f, 0.9f, 1.0f}},
+        {{-0.5f,  0.5f,  0.5f}, {0.3f, 0.9f, 0.9f, 1.0f}},
+        {{-0.5f,  0.5f, -0.5f}, {0.3f, 0.9f, 0.9f, 1.0f}},
+    };
 
-    // Transact: create 100 entities with Position and Velocity
-    sys.Transact([](Database& db) {
-        for (uint32 i = 0; i < 100; ++i) {
-            auto e = db.CreateEntity();
-            db.AddComponent<Position>(e, {1.0f, 2.0f, 3.0f});
-            db.AddComponent<Velocity>(e, {0.1f, 0.0f, 0.0f});
+    uint32 cube_indices[] = {
+         0,  1,  2,   0,  2,  3,   // front
+         4,  5,  6,   4,  6,  7,   // back
+         8,  9, 10,   8, 10, 11,   // top
+        12, 13, 14,  12, 14, 15,   // bottom
+        16, 17, 18,  16, 18, 19,   // right
+        20, 21, 22,  20, 22, 23,   // left
+    };
+
+    GPUBuffer<Vertex> vertex_buffer(BufferUsage::Vertex,
+        std::span<const Vertex>(cube_vertices, 24), "cube_vertices");
+    GPUBuffer<uint32> index_buffer(BufferUsage::Index,
+        std::span<const uint32>(cube_indices, 36), "cube_indices");
+
+    // --- Load shaders ---
+    auto shader = ShaderLoader::CreateModule("basic/mesh_vert.wgsl", "mesh_vert");
+    auto frag_shader = ShaderLoader::CreateModule("basic/mesh_frag.wgsl", "mesh_frag");
+
+    // --- Create camera bind group layout and bind group ---
+    auto camera_bgl = BindGroupLayoutBuilder("camera_bgl")
+        .AddUniformBinding(0, ShaderStage::Vertex)
+        .Build();
+
+    auto camera_bg = BindGroupBuilder("camera_bg")
+        .AddBuffer(0, engine.GetCameraUniform().GetBuffer(), sizeof(CameraUBOData))
+        .Build(camera_bgl);
+
+    // --- Create pipeline ---
+    auto pipeline_layout = PipelineLayoutBuilder("main_layout")
+        .AddBindGroupLayout(camera_bgl)
+        .Build();
+
+    auto pipeline = RenderPipelineBuilder("cube_pipeline")
+        .SetPipelineLayout(pipeline_layout)
+        .SetVertexShader(shader.GetHandle())
+        .SetFragmentShader(frag_shader.GetHandle())
+        .AddVertexBufferLayout(VertexStepMode::Vertex, sizeof(Vertex), {
+            {0, VertexFormat::Float32x3, 0},                           // position
+            {1, VertexFormat::Float32x4, sizeof(float32) * 3},         // color
+        })
+        .AddColorTarget(engine.GetColorFormat())
+        .SetDepthStencil(engine.GetDepthFormat(), true, CompareFunction::Less)
+        .SetPrimitive(PrimitiveTopology::TriangleList, CullMode::Back, FrontFace::CCW)
+        .Build();
+
+    // Release intermediate objects (pipeline holds refs)
+    wgpuPipelineLayoutRelease(pipeline_layout);
+
+    // --- Main loop ---
+    auto& input = InputManager::GetInstance();
+    Timer timer;
+    timer.Start();
+
+    LogInfo("Entering main loop...");
+
+    while (!window->ShouldClose()) {
+        window->PollEvents();
+        input.Update();
+
+        float32 dt = static_cast<float32>(timer.GetElapsedSeconds());
+        timer.Reset();
+        timer.Start();
+
+        // Handle resize
+        uint32 w = window->GetWidth();
+        uint32 h = window->GetHeight();
+        if (w != engine.GetWidth() || h != engine.GetHeight()) {
+            engine.Resize(w, h);
+            // Recreate camera bind group (buffer handle may change)
+            camera_bg = BindGroupBuilder("camera_bg")
+                .AddBuffer(0, engine.GetCameraUniform().GetBuffer(), sizeof(CameraUBOData))
+                .Build(camera_bgl);
         }
-    });
-    LogInfo("Created 100 entities with Position and Velocity");
 
-    // Log buffer validity
-    auto pos_buf = sys.GetDeviceBuffer<Position>();
-    auto vel_buf = sys.GetDeviceBuffer<Velocity>();
-    LogInfo("Position buffer: ", pos_buf ? "valid" : "null");
-    LogInfo("Velocity buffer: ", vel_buf ? "valid" : "null");
+        // Update camera
+        engine.GetCameraController().Update(dt);
+        engine.GetCameraUniform().Update(engine.GetCamera(), w, h);
+        engine.GetCamera().ClearDirty();
 
-    // Test Undo
-    if (sys.CanUndo()) {
-        sys.Undo();
-        LogInfo("Undo successful");
-        auto pos_after_undo = sys.GetDeviceBuffer<Position>();
-        LogInfo("Position buffer after undo: ", pos_after_undo ? "valid" : "null");
+        // Render
+        if (engine.BeginFrame()) {
+            RenderPassBuilder("main_pass")
+                .AddColorAttachment(engine.GetFrameView(),
+                    LoadOp::Clear, StoreOp::Store,
+                    {0.1, 0.1, 0.15, 1.0})
+                .SetDepthStencilAttachment(engine.GetDepthTarget().GetView(),
+                    LoadOp::Clear, StoreOp::Store, 1.0f)
+                .Execute(engine.GetEncoder(), [&](WGPURenderPassEncoder pass) {
+                    RenderEncoder enc(pass);
+                    enc.SetPipeline(pipeline);
+                    enc.SetBindGroup(0, camera_bg);
+                    enc.SetVertexBuffer(0, vertex_buffer.GetHandle());
+                    enc.SetIndexBuffer(index_buffer.GetHandle());
+                    enc.DrawIndexed(36);
+                });
+
+            engine.EndFrame();
+        }
+
+        // ESC to quit
+        if (IsKeyPressed(Key::Escape)) {
+            break;
+        }
     }
-
-    // Test Redo
-    if (sys.CanRedo()) {
-        sys.Redo();
-        LogInfo("Redo successful");
-        auto pos_after_redo = sys.GetDeviceBuffer<Position>();
-        LogInfo("Position buffer after redo: ", pos_after_redo ? "valid" : "null");
-    }
-
-    // Test rollback (Transact that throws)
-    try {
-        sys.Transact([](Database& db) {
-            auto e = db.CreateEntity();
-            db.AddComponent<Position>(e, {999.0f, 999.0f, 999.0f});
-            throw std::runtime_error("test rollback");
-        });
-    } catch (const std::exception& e) {
-        LogInfo("Rollback test passed: ", e.what());
-    }
-
-    LogInfo("--- System integration test complete ---");
 
     // Cleanup
+    wgpuRenderPipelineRelease(pipeline);
+    wgpuBindGroupRelease(camera_bg);
+    wgpuBindGroupLayoutRelease(camera_bgl);
+
+    engine.Shutdown();
     gpu.Shutdown();
+    window->Shutdown();
 
     LogInfo("MPS_DAWN finished.");
     return 0;

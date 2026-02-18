@@ -53,6 +53,9 @@ public:
     // Process async events (call in main loop, required for WASM init)
     void ProcessEvents();
 
+    // Surface creation (platform-agnostic)
+    WGPUSurface CreateSurface(void* native_window, void* native_display = nullptr);
+
 private:
     GPUCore() = default;
     ~GPUCore();

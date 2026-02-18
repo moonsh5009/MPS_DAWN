@@ -115,5 +115,58 @@ enum class CompareFunction : uint32 {
     Always       = 0x08,
 };
 
+// --- Pipeline/render enums (values match WGPU) ---
+
+enum class ShaderStage : uint32 {
+    None     = 0x00,
+    Vertex   = 0x01,
+    Fragment = 0x02,
+    Compute  = 0x04,
+};
+
+inline constexpr ShaderStage operator|(ShaderStage a, ShaderStage b) {
+    return static_cast<ShaderStage>(static_cast<uint32>(a) | static_cast<uint32>(b));
+}
+
+enum class BindingType : uint32 {
+    Uniform,
+    Storage,
+    ReadOnlyStorage,
+    Sampler,
+    FilteringSampler,
+    Texture2D,
+    StorageTexture2D,
+};
+
+enum class VertexFormat : uint32 {
+    Float32    = 0x0E,
+    Float32x2  = 0x0F,
+    Float32x3  = 0x10,
+    Float32x4  = 0x11,
+    Sint32     = 0x16,
+    Sint32x2   = 0x17,
+    Sint32x3   = 0x18,
+    Sint32x4   = 0x19,
+    Uint32     = 0x1A,
+    Uint32x2   = 0x1B,
+    Uint32x3   = 0x1C,
+    Uint32x4   = 0x1D,
+    Unorm8x2   = 0x01,
+    Unorm8x4   = 0x03,
+};
+
+enum class VertexStepMode : uint32 {
+    Vertex   = 0x01,
+    Instance = 0x02,
+};
+
+enum class PrimitiveTopology : uint32 {
+    PointList     = 0x01,
+    LineList      = 0x02,
+    LineStrip     = 0x03,
+    TriangleList  = 0x04,
+    TriangleStrip = 0x05,
+};
+
 }  // namespace gpu
 }  // namespace mps

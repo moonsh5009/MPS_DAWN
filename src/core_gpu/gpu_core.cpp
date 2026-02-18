@@ -154,9 +154,50 @@ void GPUCore::ProcessEvents() {
     }
 }
 
+// -- Surface creation ---------------------------------------------------------
+
+WGPUSurface GPUCore::CreateSurface(void* native_window, void* native_display) {
+    // Ensure instance exists
+    if (!instance_) {
+        if (!CreateInstance()) {
+            LogError("Failed to create instance for surface creation");
+            return nullptr;
+        }
+    }
+
+#ifdef __EMSCRIPTEN__
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {};
+    canvasDesc.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
+    canvasDesc.selector = {"#canvas", 7};
+
+    WGPUSurfaceDescriptor surfaceDesc = {};
+    surfaceDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&canvasDesc);
+#elif defined(_WIN32)
+    WGPUSurfaceSourceWindowsHWND surfaceSource = {};
+    surfaceSource.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
+    surfaceSource.hinstance = native_display;
+    surfaceSource.hwnd = native_window;
+
+    WGPUSurfaceDescriptor surfaceDesc = {};
+    surfaceDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&surfaceSource);
+#else
+    #error "Unsupported platform for surface creation"
+#endif
+
+    WGPUSurface surface = wgpuInstanceCreateSurface(instance_, &surfaceDesc);
+    if (!surface) {
+        LogError("Failed to create WebGPU surface");
+        return nullptr;
+    }
+    LogInfo("WebGPU surface created successfully");
+    return surface;
+}
+
 // -- Internal -----------------------------------------------------------------
 
 bool GPUCore::CreateInstance() {
+    if (instance_) return true;  // Already created (e.g., by CreateSurface)
+
     WGPUInstanceDescriptor desc = WGPU_INSTANCE_DESCRIPTOR_INIT;
 
 #ifndef __EMSCRIPTEN__

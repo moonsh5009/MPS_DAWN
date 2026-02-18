@@ -4,7 +4,6 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/html5.h>
-#include <webgpu/webgpu.h>
 #endif
 
 using namespace mps::util;
@@ -120,27 +119,12 @@ void WindowWasm::SetFullscreen(bool fullscreen) {
 #endif
 }
 
-WGPUSurface WindowWasm::CreateSurface(WGPUInstance instance) {
-#ifdef __EMSCRIPTEN__
-    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {};
-    canvasDesc.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
-    canvasDesc.selector = {"#canvas", 7};
+void* WindowWasm::GetNativeWindowHandle() const {
+    return nullptr;  // WASM uses canvas selector, not native handle
+}
 
-    WGPUSurfaceDescriptor surfaceDesc = {};
-    surfaceDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&canvasDesc);
-
-    WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDesc);
-    if (!surface) {
-        LogError("Failed to create WebGPU surface for WASM");
-        return nullptr;
-    }
-
-    LogInfo("WebGPU surface created successfully (WASM)");
-    return surface;
-#else
-    LogError("WindowWasm::CreateSurface can only be used in Emscripten builds");
-    return nullptr;
-#endif
+void* WindowWasm::GetNativeDisplayHandle() const {
+    return nullptr;  // WASM uses canvas selector, not native handle
 }
 
 }  // namespace platform

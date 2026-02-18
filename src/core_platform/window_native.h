@@ -32,7 +32,8 @@ public:
     void SetSize(uint32 width, uint32 height) override;
     void SetFullscreen(bool fullscreen) override;
 
-    WGPUSurface CreateSurface(WGPUInstance instance) override;
+    void* GetNativeWindowHandle() const override;
+    void* GetNativeDisplayHandle() const override;
 
     // GLFW window handle
     GLFWwindow* GetGLFWWindow() const { return window_; }

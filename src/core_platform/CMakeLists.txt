@@ -39,13 +39,9 @@ target_link_libraries(core_platform PUBLIC
 )
 
 # Link platform-specific dependencies
-if(EMSCRIPTEN)
-    target_compile_options(core_platform PUBLIC --use-port=emdawnwebgpu)
-    target_link_options(core_platform PUBLIC --use-port=emdawnwebgpu)
-else()
+if(NOT EMSCRIPTEN)
     target_link_libraries(core_platform PUBLIC
         glfw
-        webgpu_dawn
     )
 endif()
 

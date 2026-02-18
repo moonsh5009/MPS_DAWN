@@ -36,5 +36,13 @@ target_link_libraries(mps_dawn PRIVATE
     mps::core_util
     mps::core_platform
     mps::core_gpu
+    mps::core_render
     mps::core_system
+)
+
+# Copy shaders to output directory (next to executable)
+add_custom_command(TARGET mps_dawn POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:mps_dawn>/shaders
+    COMMENT "Copying shaders to output directory"
 )

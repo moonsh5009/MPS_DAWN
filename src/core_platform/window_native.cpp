@@ -10,8 +10,6 @@
 #include <GLFW/glfw3native.h>
 #endif
 
-#include <webgpu/webgpu.h>
-
 using namespace mps::util;
 
 namespace mps {
@@ -152,33 +150,20 @@ void WindowNative::SetFullscreen(bool fullscreen) {
     }
 }
 
-WGPUSurface WindowNative::CreateSurface(WGPUInstance instance) {
-    if (!window_) {
-        LogError("Cannot create surface: window not initialized");
-        return nullptr;
-    }
-
+void* WindowNative::GetNativeWindowHandle() const {
+    if (!window_) return nullptr;
 #ifdef _WIN32
-    HWND hwnd = glfwGetWin32Window(window_);
-    WGPUSurfaceSourceWindowsHWND surfaceSource = {};
-    surfaceSource.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
-    surfaceSource.hinstance = GetModuleHandle(nullptr);
-    surfaceSource.hwnd = hwnd;
-
-    WGPUSurfaceDescriptor surfaceDesc = {};
-    surfaceDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&surfaceSource);
-
-    WGPUSurface surface = wgpuInstanceCreateSurface(instance, &surfaceDesc);
-    if (!surface) {
-        LogError("Failed to create WebGPU surface");
-        return nullptr;
-    }
-
-    LogInfo("WebGPU surface created successfully");
-    return surface;
+    return static_cast<void*>(glfwGetWin32Window(window_));
 #else
-    // TODO: Implement for other platforms (Linux, macOS)
-    LogError("Surface creation not implemented for this platform");
+    // TODO: Linux/macOS native handle
+    return nullptr;
+#endif
+}
+
+void* WindowNative::GetNativeDisplayHandle() const {
+#ifdef _WIN32
+    return static_cast<void*>(GetModuleHandle(nullptr));
+#else
     return nullptr;
 #endif
 }
