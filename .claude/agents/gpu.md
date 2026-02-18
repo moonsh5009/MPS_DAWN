@@ -14,12 +14,17 @@ Owns the `core_gpu` module. Handles WebGPU integration, Dawn vs Emscripten, reso
 ```
 src/core_gpu/
 ├── CMakeLists.txt
-├── gpu_types.h         # Shared enums (BufferUsage, TextureFormat, ...) + GPUException
-├── gpu_core.h/cpp      # GPUCore singleton (instance, adapter, device, queue)
-├── gpu_buffer.h/cpp    # GPUBufferCore + GPUBuffer<T> (typed, resizable)
-├── gpu_shader.h/cpp    # GPUShader (WGSL shader module)
-├── gpu_texture.h/cpp   # GPUTexture (2D/3D + default view)
-└── gpu_sampler.h/cpp   # GPUSampler (filtering, addressing)
+├── gpu_types.h                     # Shared enums (BufferUsage, TextureFormat, ShaderStage, BindingType, ...) + GPUException
+├── gpu_core.h/cpp                  # GPUCore singleton (instance, adapter, device, queue, surface creation)
+├── gpu_buffer.h/cpp                # GPUBufferCore + GPUBuffer<T> (typed, resizable)
+├── gpu_shader.h/cpp                # GPUShader (WGSL shader module)
+├── gpu_texture.h/cpp               # GPUTexture (2D/3D + default view)
+├── gpu_sampler.h/cpp               # GPUSampler (filtering, addressing)
+├── bind_group_layout_builder.h/cpp # Fluent WGPUBindGroupLayout builder
+├── bind_group_builder.h/cpp        # Fluent WGPUBindGroup builder (buffer/texture/sampler)
+├── pipeline_layout_builder.h/cpp   # Fluent WGPUPipelineLayout builder
+├── surface_manager.h/cpp           # Surface configure/present/acquire/resize
+└── shader_loader.h/cpp             # WGSL file loader with #import directive support
 ```
 
 ## WebGPU Integration
@@ -180,22 +185,48 @@ GPUSampler nearest(SamplerConfig{
 
 ## Surface Creation
 
-Platform-specific, follows `_native`/`_wasm` file split.
+Handled by `GPUCore::CreateSurface(void* native_window, void* native_display)`. Platform detection via `#ifdef` inside `gpu_core.cpp`.
 
 ```cpp
-// Native — per-OS window handle
-#ifdef _WIN32
-    hwnd_source.hwnd = glfwGetWin32Window(glfw_window);     // WGPUSType_SurfaceSourceWindowsHWND
-#elif defined(__linux__)
-    x11_source.window = glfwGetX11Window(glfw_window);      // WGPUSType_SurfaceSourceXlibWindow
-#elif defined(__APPLE__)
-    metal_source.layer = GetMetalLayer(glfw_window);         // WGPUSType_SurfaceSourceMetalLayer
-#endif
+// Usage — window provides native handles, GPUCore creates the surface
+auto& gpu = GPUCore::GetInstance();
+WGPUSurface surface = gpu.CreateSurface(
+    window->GetNativeWindowHandle(),
+    window->GetNativeDisplayHandle()
+);
+gpu.Initialize(config, surface);  // compatible_surface for adapter selection
+```
 
-// WASM — HTML canvas selector (emdawnwebgpu API)
-WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvas_source = {};
-canvas_source.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
-canvas_source.selector = {"#canvas", 7};
+Internally: `WGPUSurfaceSourceWindowsHWND` (Win32), `WGPUEmscriptenSurfaceSourceCanvasHTMLSelector` (WASM).
+
+## Builders
+
+Fluent rvalue-reference API (`Builder().Method().Build()`):
+
+- **BindGroupLayoutBuilder**: `AddBinding(binding, stage, type)` → `Build()` → `WGPUBindGroupLayout`
+- **BindGroupBuilder**: `AddBuffer/AddTextureView/AddSampler(binding, handle)` → `Build(layout)` → `WGPUBindGroup`
+- **PipelineLayoutBuilder**: `AddBindGroupLayout(layout)` → `Build()` → `WGPUPipelineLayout`
+
+## SurfaceManager
+
+Configures and manages the swap chain surface:
+
+```cpp
+gpu::SurfaceManager surface;
+surface.Initialize(wgpu_surface, {width, height, vsync});
+// Per frame:
+WGPUTextureView view = surface.AcquireNextFrameView();
+// ... render ...
+surface.Present();
+```
+
+## ShaderLoader
+
+Loads WGSL files with `#import` directive support (recursive, cycle-detected):
+
+```cpp
+gpu::GPUShader shader = gpu::ShaderLoader::CreateModule("basic/triangle.wgsl");
+WGPUShaderModule module = shader.GetHandle();
 ```
 
 ## Dawn API Notes
@@ -210,5 +241,6 @@ canvas_source.selector = {"#canvas", 7};
 - Forward-declare WebGPU types in headers; include `<webgpu/webgpu.h>` only in `.cpp`
 - Dawn-specific: guard with `#ifndef __EMSCRIPTEN__`
 - Never include `dawn/dawn_proc.h` — monolithic `webgpu_dawn` handles procs internally
-- Surface creation: platform-specific per `_native`/`_wasm` split
-- Shaders: string constants or file-loaded, not hardcoded inline
+- Surface creation: `GPUCore::CreateSurface()` handles platform-specific logic internally
+- Shaders: use `ShaderLoader::CreateModule()` for file-loaded WGSL, or `GPUShader` for inline code
+- Builders, SurfaceManager, ShaderLoader moved here from core_render — use `gpu::` prefix when referenced from other modules

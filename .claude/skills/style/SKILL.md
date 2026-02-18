@@ -48,8 +48,6 @@ private:
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>                   // Third-party
 
-#include <webgpu/webgpu.h>                // More third-party
-
 using namespace mps::util;                // OK in .cpp, NEVER in .h
 
 namespace mps::platform {                 // C++17 nested namespace
@@ -59,7 +57,7 @@ namespace mps::platform {                 // C++17 nested namespace
 }  // namespace mps::platform
 ```
 
-> Source pattern: `window_native.cpp:1-23`
+> Source pattern: `window_native.cpp:1-22`
 
 ### Closing namespace comments
 
@@ -81,11 +79,9 @@ Within each group, order alphabetically. Separate groups with a blank line.
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>                    // 3. Third-party
-
-#include <webgpu/webgpu.h>                 // 4. More third-party
 ```
 
-> Source: `window_native.cpp:1-17`
+> Source: `window_native.cpp:1-16`
 
 ## 3. Formatting Rules
 
@@ -108,7 +104,7 @@ window_ = glfwCreateWindow(
 );
 ```
 
-> Source: `window_native.cpp:40-46`
+> Source: `window_native.cpp:38-44`
 
 ### Multi-line function calls
 
@@ -121,7 +117,7 @@ InputManager::GetInstance().SetMousePosition(
 );
 ```
 
-> Source: `window_native.cpp:219-222`
+> Source: `window_native.cpp:204-207`
 
 ### Blank lines
 
@@ -155,10 +151,9 @@ Mark getters with `[[nodiscard]]` so callers cannot silently discard the result:
 
 ```cpp
 [[nodiscard]] static std::unique_ptr<IWindow> Create();
-[[nodiscard]] WGPUSurface CreateSurface(WGPUInstance instance);
 ```
 
-> Baseline: `window.h:52-55`
+> Baseline: `window.h:50`
 
 ### Return by `const&` for member strings
 
@@ -166,7 +161,7 @@ Mark getters with `[[nodiscard]]` so callers cannot silently discard the result:
 [[nodiscard]] const std::string& GetTitle() const;
 ```
 
-> Baseline: `window.h:44`
+> Baseline: `window.h:38`
 
 ### Parameters
 
@@ -178,7 +173,7 @@ Mark getters with `[[nodiscard]]` so callers cannot silently discard the result:
 
 Use `std::string_view` when the function only reads the string and does not store it. Use `const std::string&` when the function stores or forwards it.
 
-> Baseline: `window.h:31, 47-49`, `input.h:81`
+> Baseline: `window.h:25, 41-43`, `input.h:81`
 
 ## 5. Initialization & `constexpr`
 
@@ -192,7 +187,7 @@ WindowConfig config_;
 bool is_focused_ = true;
 ```
 
-> Source: `window_native.h:49-51`
+> Source: `window_native.h:50-52`
 
 ### Brace initialization for aggregates
 
@@ -217,7 +212,7 @@ struct WindowConfig {
 };
 ```
 
-> Source: `window.h:17-23`
+> Source: `window.h:12-17`
 
 ### `constexpr` for compile-time constants and simple functions
 
@@ -400,7 +395,7 @@ for (auto& pair : key_states_) {
 }
 ```
 
-> Source: `input.cpp:35-39`
+> Source: `input.cpp:22-26`
 
 ## 10. Unused Parameters & Standard Attributes
 
@@ -416,7 +411,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 }
 ```
 
-> Source: `window_native.cpp:202-207`
+> Source: `window_native.cpp:187-192`
 
 **Do NOT** use `(void)param` casts or `[[maybe_unused]]` for unused parameters.
 

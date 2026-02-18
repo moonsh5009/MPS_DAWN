@@ -29,16 +29,14 @@ C++20 WebGPU graphics engine using Dawn (native) and Emscripten (WASM). CMake st
 
 ```
 src/main.cpp (executable: mps_dawn)
-  └── core_system     (mps::core_system)   — controller: orchestrates database + simulate + render
-        ├── core_database  (mps::core_database)  — host ECS (entities, components, transactions, undo/redo)
-        ├── core_simulate  (mps::core_simulate)  — device DB (GPU buffer mirrors of host ECS data)
-        ├── core_render    (mps::core_render)    — rendering (reads GPU buffer handles, no ECS knowledge)
-        ├── core_gpu       (mps::core_gpu)       — WebGPU abstraction (device, buffers, shaders, textures, samplers)
-        └── core_util      (mps::core_util)      — types, logger, timer, math
-  └── core_platform   (mps::core_platform) — window, input
+  ├── core_system     (mps::core_system)   — controller: orchestrates database + simulate + render
+  │     ├── core_database  (mps::core_database)  — host ECS (entities, components, transactions, undo/redo)
+  │     ├── core_simulate  (mps::core_simulate)  — device DB (GPU buffer mirrors of host ECS data)
+  │     └── core_render    (mps::core_render)    — rendering pipeline (camera, passes, post-processing)
+  ├── core_gpu       (mps::core_gpu)       — WebGPU abstraction (device, buffers, shaders, textures, builders, surface)
+  ├── core_platform  (mps::core_platform)  — window, input
+  └── core_util      (mps::core_util)      — types, logger, timer, math
 ```
-
-Stub module (INTERFACE library, no sources yet): `core_render`
 
 ### Third-Party Dependencies (`third_party/`, git submodules)
 
@@ -50,7 +48,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 
 ### Namespaces
 
-`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system)
+`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system)
 
 ## Key Coding Conventions
 
@@ -85,10 +83,11 @@ Native custom subagents in `.claude/agents/*.md` (YAML frontmatter). Auto-delega
 | agent-manager | Agent system, CLAUDE.md | — |
 | dev-environment | CMake, Git, dependencies | — |
 | module-management | Architecture, coding standards, types | core_util, core_platform |
-| gpu | WebGPU / Dawn | core_gpu |
+| gpu | WebGPU / Dawn, builders, surface, shaders | core_gpu |
 | database | Host ECS, transactions, undo/redo | core_database |
-| render | Rendering engine | core_render |
+| render | Rendering pipeline, camera, post-processing | core_render |
 | simulate | Device DB, GPU buffer sync | core_simulate |
+| system | System controller, ECS orchestration | core_system |
 
 All agents use `memory: project` → `.claude/agent-memory/<name>/MEMORY.md` (first 200 lines auto-injected).
 
