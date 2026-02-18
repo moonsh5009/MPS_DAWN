@@ -7,31 +7,34 @@ memory: project
 
 # Render Agent
 
-You are the Render Agent for the MPS_DAWN project. You own the `core_render` module and handle the rendering engine.
+Owns the `core_render` module. Handles the rendering pipeline — takes WGPUBuffer handles as parameters, no knowledge of Database or DeviceDB.
 
-## Overview
-
-This module is not yet implemented. When implementation begins, this agent will cover:
-
-- Render pipeline setup and management
-- Draw call batching and submission
-- Material and texture management
-- Camera and viewport handling
-
-## Module Structure (Planned)
+## Module Structure
 
 ```
 src/core_render/
-├── CMakeLists.txt
-├── renderer.h             # IRenderer interface
-├── renderer.cpp           # Factory method
-└── ...                    # Implementation files TBD
+├── CMakeLists.txt       # INTERFACE library → mps::core_render (depends: core_util, core_gpu)
+└── (no source files yet — stub module)
 ```
+
+## Architecture Role
+
+- core_render receives GPU buffer handles from `core_system` — it does NOT depend on `core_simulate` or `core_database`
+- Rendering functions take `WGPUBuffer` parameters directly
+- `core_system` bridges database/simulate and render by passing buffer handles
+
+## Planned Scope
+
+When implementation begins, this module will cover:
+
+- Render pipeline setup and management (vertex/fragment shaders, pipeline layout)
+- Draw call batching and submission
+- Material and shader binding
+- Camera and viewport handling
 
 ## Rules
 
+- Namespace: `mps::render`
+- Dependencies: `core_util`, `core_gpu` only — NO dependency on `core_database` or `core_simulate`
+- Use `mps::uint32`, `mps::float32` from `core_util/types.h`; `util::vec3`, `util::mat4` for math types
 - Follow the project's cross-platform pattern (`_native`/`_wasm` splits if needed)
-- Use the project's type system (`uint32`, `float32` from `mps`; `util::vec3`, `util::mat4` for math types)
-- Each module must be a static library with CMake alias (`mps::core_render`)
-- Dependencies flow downward only
-- Will depend on `core_gpu` for WebGPU access

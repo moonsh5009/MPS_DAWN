@@ -7,30 +7,60 @@ memory: project
 
 # Simulate Agent
 
-You are the Simulate Agent for the MPS_DAWN project. You own the `core_simulate` module and handle the simulation and scheduling system.
+Owns the `core_simulate` module. Manages GPU buffer mirroring of host ECS data (DeviceDB).
 
-## Overview
-
-This module is not yet implemented. When implementation begins, this agent will cover:
-
-- Game loop and frame timing
-- Entity update scheduling
-- Physics simulation integration
-- Event system and message passing
-
-## Module Structure (Planned)
+## Module Structure
 
 ```
 src/core_simulate/
-├── CMakeLists.txt
-├── simulator.h            # ISimulator interface
-├── simulator.cpp          # Factory method
-└── ...                    # Implementation files TBD
+├── CMakeLists.txt           # STATIC library → mps::core_simulate (depends: core_util, core_gpu, core_database)
+├── device_buffer_entry.h    # IDeviceBufferEntry, DeviceBufferEntry<T> (type-erased GPU buffer wrapper)
+└── device_db.h / device_db.cpp  # DeviceDB (GPU mirrors of host ECS data)
+```
+
+## Key Types
+
+| Type | Header | Description |
+|------|--------|-------------|
+| `IDeviceBufferEntry` | `device_buffer_entry.h` | Type-erased base for GPU buffer entries |
+| `DeviceBufferEntry<T>` | `device_buffer_entry.h` | Owns `gpu::GPUBuffer<T>`, syncs from `IComponentStorage` |
+| `DeviceDB` | `device_db.h` | Registers component types, syncs dirty data to GPU |
+
+## DeviceDB API
+
+```cpp
+explicit DeviceDB(database::Database& host_db);
+
+template<database::Component T>
+void Register(gpu::BufferUsage extra_usage = gpu::BufferUsage::None,
+              const std::string& label = "");
+
+void Sync();  // upload dirty types, then ClearAllDirty()
+
+template<database::Component T> WGPUBuffer GetBufferHandle() const;
+IDeviceBufferEntry* GetEntryById(database::ComponentTypeId id) const;
+bool IsRegistered(database::ComponentTypeId id) const;
+```
+
+## Design Patterns
+
+- **Sync strategy**: Full re-upload of dirty dense arrays via `GPUBuffer<T>::WriteData()`
+- **Buffer usage**: Base `Storage | CopySrc | CopyDst`, plus extra flags from `Register()`
+- **Lazy buffer creation**: Buffer created/resized on first `SyncFromHost()` call
+- **Dirty tracking**: Uses `Database::GetDirtyTypeIds()` + `ClearAllDirty()` after sync
+
+## Data Flow
+
+```
+Database (host) ──dirty flags──► DeviceDB::Sync() ──WriteData──► GPU Buffers
+                                                                    │
+core_system calls Sync()                              core_render reads handles
+after every Transact/Undo/Redo
 ```
 
 ## Rules
 
-- Follow the project's cross-platform pattern (`_native`/`_wasm` splits if needed)
-- Use the project's type system (`uint32`, `float32`, etc. from `mps` namespace)
-- Each module must be a static library with CMake alias (`mps::core_simulate`)
-- Dependencies flow downward only
+- Namespace: `mps::simulate`
+- DeviceDB does NOT own the Database — takes a reference
+- core_render reads GPU buffer handles but has NO dependency on core_simulate
+- core_system bridges the gap: calls Sync() and passes handles to render

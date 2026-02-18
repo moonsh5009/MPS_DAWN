@@ -16,7 +16,12 @@
 
 Domain-based over role-based: each agent owns specific modules (e.g., "GPU Agent" owns `core_gpu`) rather than generic roles (e.g., "Build Agent").
 
+## Completed Work
+
+- **2026-02-18**: Updated database and simulate agent definitions after ECS + DeviceDB implementation
+- **2026-02-18**: Updated render agent with clarified role (GPU buffer consumer, no ECS knowledge)
+
 ## Pending Work
 
-- Fill in database/render/simulate agents as modules are implemented (gpu agent updated 2026-02-14)
 - Refine agent boundaries if overlap is discovered
+- Consider adding a dedicated agent for core_system if the module grows

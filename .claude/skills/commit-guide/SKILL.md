@@ -46,7 +46,8 @@ Use the module name without `mps::` prefix:
 | `core_gpu` | WebGPU / Dawn |
 | `core_database` | database, transactions |
 | `core_render` | rendering pipeline |
-| `core_simulate` | simulation, scheduling |
+| `core_simulate` | simulation, device DB |
+| `core_system` | system controller |
 | *(omit)* | project-wide or non-module changes |
 
 Multiple modules affected → omit scope, mention in description.
