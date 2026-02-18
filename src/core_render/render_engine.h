@@ -35,6 +35,9 @@ public:
     void Shutdown();
     void Resize(uint32 width, uint32 height);
 
+    // Uniform updates (camera controller + all uniforms with dirty check)
+    void UpdateUniforms(float32 dt);
+
     // Per-frame cycle
     bool BeginFrame();
     WGPUCommandEncoder GetEncoder() const;

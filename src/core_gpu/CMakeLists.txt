@@ -12,6 +12,8 @@ add_library(core_gpu STATIC
     pipeline_layout_builder.cpp
     surface_manager.cpp
     shader_loader.cpp
+    compute_pipeline_builder.cpp
+    compute_encoder.cpp
 )
 
 # Set target properties

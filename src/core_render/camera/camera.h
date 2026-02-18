@@ -7,8 +7,8 @@ namespace mps {
 namespace render {
 
 struct CameraConfig {
-    util::vec3 position = {0.0f, 2.0f, 5.0f};
-    util::vec3 target = {0.0f, 0.0f, 0.0f};
+    util::vec3 position = {0.0f, 3.0f, 8.0f};
+    util::vec3 target = {0.0f, 1.5f, 0.0f};
     util::vec3 up = {0.0f, 1.0f, 0.0f};
     float32 fov = 45.0f;  // degrees
     float32 aspect_ratio = 16.0f / 9.0f;

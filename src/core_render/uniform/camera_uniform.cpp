@@ -25,9 +25,9 @@ void CameraUniform::Initialize() {
     buffer_ = std::make_unique<GPUBuffer<CameraUBOData>>(config);
 }
 
-bool CameraUniform::Update(const Camera& camera, uint32 width, uint32 height) {
+void CameraUniform::Update(Camera& camera, uint32 width, uint32 height) {
     if (!camera.IsDirty()) {
-        return false;
+        return;
     }
 
     CameraUBOData data;
@@ -41,7 +41,7 @@ bool CameraUniform::Update(const Camera& camera, uint32 width, uint32 height) {
     data.padding = vec2(0.0f);
 
     buffer_->WriteData(std::span<const CameraUBOData>(&data, 1));
-    return true;
+    camera.ClearDirty();
 }
 
 WGPUBuffer CameraUniform::GetBuffer() const {

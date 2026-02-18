@@ -36,7 +36,7 @@ public:
     CameraUniform& operator=(const CameraUniform&) = delete;
 
     void Initialize();
-    bool Update(const Camera& camera, uint32 width, uint32 height);
+    void Update(Camera& camera, uint32 width, uint32 height);
     WGPUBuffer GetBuffer() const;
 
 private:

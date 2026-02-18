@@ -86,6 +86,12 @@ void RenderEngine::Resize(uint32 width, uint32 height) {
     LogInfo("RenderEngine resized (", width, "x", height, ")");
 }
 
+void RenderEngine::UpdateUniforms(float32 dt) {
+    camera_controller_.Update(dt);
+    camera_uniform_.Update(camera_, width_, height_);
+    light_uniform_.Update();
+}
+
 bool RenderEngine::BeginFrame() {
     assert(initialized_);
 
