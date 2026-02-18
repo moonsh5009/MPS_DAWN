@@ -52,3 +52,6 @@ add_subdirectory(third_party/glm)
 
 # Add source directory
 add_subdirectory(src)
+
+# Add extensions
+add_subdirectory(extensions)

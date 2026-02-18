@@ -5,13 +5,20 @@
 #include "core_gpu/gpu_types.h"
 #include "core_simulate/device_db.h"
 #include <functional>
+#include <memory>
 #include <string>
+#include <vector>
 
 // Forward-declare WebGPU handle types
-struct WGPUBufferImpl;  typedef WGPUBufferImpl* WGPUBuffer;
+struct WGPUBufferImpl;              typedef WGPUBufferImpl* WGPUBuffer;
+struct WGPURenderPassEncoderImpl;   typedef WGPURenderPassEncoderImpl* WGPURenderPassEncoder;
 
 namespace mps {
+namespace simulate { class ISimulator; }
+namespace render { class IObjectRenderer; class RenderEngine; }
 namespace system {
+
+class IExtension;
 
 // Top-level system controller.
 // Owns the host Database and DeviceDB, providing a unified facade for
@@ -47,11 +54,35 @@ public:
     // Read-only access to the host database.
     const database::Database& GetDatabase() const;
 
+    // Access the device DB (GPU mirror).
+    simulate::DeviceDB& GetDeviceDB();
+
+    // --- Extension system ---
+
+    // Registration (call before InitializeExtensions)
+    void AddExtension(std::unique_ptr<IExtension> extension);
+    void AddSimulator(std::unique_ptr<simulate::ISimulator> simulator);
+    void AddRenderer(std::unique_ptr<render::IObjectRenderer> renderer);
+
+    // Lifecycle
+    void InitializeExtensions(render::RenderEngine& engine);
+    void ShutdownExtensions();
+
+    // Per-frame
+    void UpdateSimulators(float32 dt);
+    void RenderAll(render::RenderEngine& engine, WGPURenderPassEncoder pass);
+
 private:
     void SyncToDevice();
 
     database::Database db_;
     simulate::DeviceDB device_db_;
+
+    // Extension system
+    std::vector<std::unique_ptr<IExtension>> extensions_;
+    std::vector<std::unique_ptr<simulate::ISimulator>> simulators_;
+    std::vector<std::unique_ptr<render::IObjectRenderer>> renderers_;
+    bool extensions_initialized_ = false;
 };
 
 // ============================================================================

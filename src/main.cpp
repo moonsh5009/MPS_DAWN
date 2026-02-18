@@ -11,16 +11,20 @@
 #include "core_render/pass/render_pass_builder.h"
 #include "core_render/pass/render_encoder.h"
 #include "core_render/uniform/camera_uniform.h"
+#include "core_system/system.h"
+#include "ext_sample/sample_extension.h"
 #include "core_util/logger.h"
 #include "core_util/types.h"
 #include "core_util/timer.h"
 #include <webgpu/webgpu.h>
+#include <memory>
 
 using namespace mps;
 using namespace mps::util;
 using namespace mps::gpu;
 using namespace mps::render;
 using namespace mps::platform;
+using namespace mps::system;
 
 // Vertex structure for colored cube
 struct Vertex {
@@ -60,6 +64,11 @@ int main() {
     RenderEngineConfig render_config;
     render_config.clear_color = {0.1, 0.1, 0.15, 1.0};
     engine.Initialize(surface, window->GetWidth(), window->GetHeight(), render_config);
+
+    // --- Initialize extension system ---
+    System system;
+    system.AddExtension(std::make_unique<ext_sample::SampleExtension>(system));
+    system.InitializeExtensions(engine);
 
     // --- Create cube geometry ---
     // Cube vertices: position (xyz) + color (rgba)
@@ -152,8 +161,8 @@ int main() {
     LogInfo("Entering main loop...");
 
     while (!window->ShouldClose()) {
-        window->PollEvents();
         input.Update();
+        window->PollEvents();
 
         float32 dt = static_cast<float32>(timer.GetElapsedSeconds());
         timer.Reset();
@@ -169,6 +178,9 @@ int main() {
                 .AddBuffer(0, engine.GetCameraUniform().GetBuffer(), sizeof(CameraUBOData))
                 .Build(camera_bgl);
         }
+
+        // Update simulators
+        system.UpdateSimulators(dt);
 
         // Update camera
         engine.GetCameraController().Update(dt);
@@ -190,6 +202,9 @@ int main() {
                     enc.SetVertexBuffer(0, vertex_buffer.GetHandle());
                     enc.SetIndexBuffer(index_buffer.GetHandle());
                     enc.DrawIndexed(36);
+
+                    // Extension renderers
+                    system.RenderAll(engine, pass);
                 });
 
             engine.EndFrame();
@@ -202,6 +217,8 @@ int main() {
     }
 
     // Cleanup
+    system.ShutdownExtensions();
+
     wgpuRenderPipelineRelease(pipeline);
     wgpuBindGroupRelease(camera_bg);
     wgpuBindGroupLayoutRelease(camera_bgl);

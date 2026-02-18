@@ -18,13 +18,17 @@ inline constexpr ComponentTypeId kInvalidComponentTypeId = UINT32_MAX;
 template<typename T>
 concept Component = std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>;
 
+namespace detail {
+inline ComponentTypeId AllocateComponentTypeId() {
+    static std::atomic<ComponentTypeId> counter{0};
+    return counter.fetch_add(1);
+}
+}  // namespace detail
+
 // Returns a unique ComponentTypeId for each type T (thread-safe, monotonic counter)
 template<Component T>
 ComponentTypeId GetComponentTypeId() {
-    static const ComponentTypeId id = [] {
-        static std::atomic<ComponentTypeId> counter{0};
-        return counter.fetch_add(1);
-    }();
+    static const ComponentTypeId id = detail::AllocateComponentTypeId();
     return id;
 }
 

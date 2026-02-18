@@ -7,14 +7,46 @@
 #include <filesystem>
 #include <functional>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 using namespace mps::util;
 
 namespace mps {
 namespace gpu {
 
+// -- Base path resolution -----------------------------------------------------
+
+std::string ShaderLoader::ResolveBasePath() {
+    // Try relative to CWD
+    if (std::filesystem::exists("shaders/"))
+        return "shaders/";
+    if (std::filesystem::exists("../shaders/"))
+        return "../shaders/";
+
+    // Try relative to executable directory
+#ifdef _WIN32
+    char buf[MAX_PATH];
+    DWORD len = GetModuleFileNameA(NULL, buf, MAX_PATH);
+    if (len > 0 && len < MAX_PATH) {
+        auto exe_dir = std::filesystem::path(buf).parent_path();
+        auto shader_dir = exe_dir / "shaders";
+        if (std::filesystem::exists(shader_dir))
+            return (shader_dir / "").string();  // trailing separator
+    }
+#endif
+
+    LogWarning("Shader base path not found, defaulting to shaders/");
+    return "shaders/";
+}
+
 // -- Source loading with #import support ---------------------------------------
 
 std::string ShaderLoader::LoadSource(const std::string& path) {
+    static std::string base = ResolveBasePath();
+
     std::string source;
     const std::regex dir_pattern{"\\w+\\.wgsl"};
     const std::regex import_pattern{R"_(^[ \t]*#import[ \t]+"(.*)"\s*$)_", std::regex::optimize};
@@ -38,22 +70,21 @@ std::string ShaderLoader::LoadSource(const std::string& path) {
         std::string line;
         std::smatch matches;
         while (std::getline(ss, line)) {
-            if (std::regex_search(line, matches, import_pattern))
-                read_source(path_dir + matches[1].str());
+            if (std::regex_search(line, matches, import_pattern)) {
+                auto import_file = matches[1].str();
+                auto relative_path = path_dir + import_file;
+                auto rel_normalized = std::filesystem::path(relative_path).lexically_normal().string();
+                if (std::filesystem::exists(rel_normalized))
+                    read_source(relative_path);
+                else
+                    read_source(base + import_file);
+            }
             else
                 source.append(line + '\n');
         }
     };
 
-    try {
-        read_source("shaders/" + path);
-    } catch (...) {
-        try {
-            read_source("../shaders/" + path);
-        } catch (...) {
-            LogError("Unable to open shader source: ", path);
-        }
-    }
+    read_source(base + path);
 
     return source;
 }
@@ -69,19 +100,6 @@ GPUShader ShaderLoader::CreateModule(const std::string& path, const std::string&
     std::string shader_label = label.empty() ? path : label;
     ShaderConfig config{code, shader_label};
     return GPUShader(config);
-}
-
-// -- Base path resolution -----------------------------------------------------
-
-std::string ShaderLoader::ResolveBasePath() {
-    if (std::filesystem::exists("shaders/")) {
-        return "shaders/";
-    }
-    if (std::filesystem::exists("../shaders/")) {
-        return "../shaders/";
-    }
-    LogWarning("Shader base path not found, defaulting to shaders/");
-    return "shaders/";
 }
 
 }  // namespace gpu

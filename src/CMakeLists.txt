@@ -38,6 +38,7 @@ target_link_libraries(mps_dawn PRIVATE
     mps::core_gpu
     mps::core_render
     mps::core_system
+    mps::ext_sample
 )
 
 # Copy shaders to output directory (next to executable)

@@ -63,6 +63,18 @@ struct GPUCore::Callbacks {
             core->state_ = GPUState::Error;
         }
     }
+
+    static void OnDeviceError(WGPUDevice const* device, WGPUErrorType type,
+                               WGPUStringView message, void* userdata1, void* userdata2) {
+        const char* type_str = "Unknown";
+        switch (type) {
+            case WGPUErrorType_Validation: type_str = "Validation"; break;
+            case WGPUErrorType_OutOfMemory: type_str = "OutOfMemory"; break;
+            case WGPUErrorType_Internal: type_str = "Internal"; break;
+            default: break;
+        }
+        LogError("Dawn [", type_str, "]: ", StringViewToString(message));
+    }
 };
 
 // -- Singleton ----------------------------------------------------------------
@@ -255,6 +267,8 @@ bool GPUCore::RequestAdapter(WGPUSurface compatible_surface) {
 
 bool GPUCore::RequestDevice() {
     WGPUDeviceDescriptor desc = WGPU_DEVICE_DESCRIPTOR_INIT;
+    desc.uncapturedErrorCallbackInfo.callback = Callbacks::OnDeviceError;
+    desc.uncapturedErrorCallbackInfo.userdata1 = this;
 
     WGPURequestDeviceCallbackInfo cb = WGPU_REQUEST_DEVICE_CALLBACK_INFO_INIT;
 #ifdef __EMSCRIPTEN__
