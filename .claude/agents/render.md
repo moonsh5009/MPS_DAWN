@@ -16,6 +16,7 @@ src/core_render/
 ├── CMakeLists.txt                          # STATIC library → mps::core_render (depends: core_util, core_gpu, core_platform)
 ├── render_types.h                          # Forward-declared WebGPU handles, render-specific enums
 ├── render_engine.h/cpp                     # Frame lifecycle orchestrator (BeginFrame/EndFrame)
+├── object_renderer.h                       # IObjectRenderer interface (for extensions)
 ├── pipeline/
 │   └── render_pipeline_builder.h/cpp       # Fluent render pipeline builder
 ├── camera/
@@ -58,6 +59,7 @@ src/core_render/
 | `RenderEncoder` | `pass/render_encoder.h` | Unified pass/bundle encoder wrapper |
 | `RenderTarget` | `target/render_target.h` | Resizable GPU texture target |
 | `DrawCommand` / `DrawList` | `geometry/draw_command.h` | Mesh binding + batched draw |
+| `IObjectRenderer` | `object_renderer.h` | Extension interface: `Render(RenderEngine&, WGPURenderPassEncoder)`, managed by System |
 | `FXAAPass` | `post/fxaa_pass.h` | FXAA anti-aliasing post-process |
 | `WBOITPass` | `post/wboit_pass.h` | Weighted blended OIT transparency |
 

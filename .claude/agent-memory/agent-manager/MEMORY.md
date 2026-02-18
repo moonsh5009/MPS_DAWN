@@ -22,6 +22,7 @@ Domain-based over role-based: each agent owns specific modules (e.g., "GPU Agent
 - **2026-02-18**: Updated render agent with clarified role (GPU buffer consumer, no ECS knowledge)
 - **2026-02-18**: Created system agent for core_system module
 - **2026-02-18**: Module audit — moved builders/surface/shader from core_render to core_gpu, updated all agent docs
+- **2026-02-18**: Extension system implemented — IExtension, ISimulator, IObjectRenderer interfaces + ext_sample plugin
 
 ## Pending Work
 

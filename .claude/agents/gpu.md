@@ -222,7 +222,7 @@ surface.Present();
 
 ## ShaderLoader
 
-Loads WGSL files with `#import` directive support (recursive, cycle-detected):
+Loads WGSL files with `#import` directive support (recursive, cycle-detected). Resolves shader base path in order: `./shaders/`, `../shaders/`, then exe directory (via `GetModuleFileNameA` on Windows).
 
 ```cpp
 gpu::GPUShader shader = gpu::ShaderLoader::CreateModule("basic/triangle.wgsl");
@@ -235,6 +235,8 @@ WGPUShaderModule module = shader.GetHandle();
 - Strings use `WGPUStringView{data, length}`, not `const char*`
 - Adapter info: `wgpuAdapterGetInfo()` + `wgpuAdapterInfoFreeMembers()`
 - `DAWN_FORCE_SYSTEM_COMPONENT_LOAD ON` in root CMakeLists.txt — loads system DLLs from System32
+- **Uncaptured error callback**: Set on `WGPUDeviceDescriptor::uncapturedErrorCallbackInfo` during device request. Signature: `void(WGPUDevice const*, WGPUErrorType, WGPUStringView, void*, void*)`
+- **VertexFormat enum alignment**: `gpu_types.h` values MUST match Dawn's `WGPUVertexFormat`. Dawn includes 8-bit/16-bit integer/normalized/float16 types that shift Float32/Uint32/Sint32 to higher values (e.g., `Float32x3 = 0x1E`, not `0x10`)
 
 ## Rules
 

@@ -23,11 +23,12 @@
 - post/fxaa_pass.h/.cpp: FXAA post-processing. Uses gpu:: builders and ShaderLoader.
 - post/wboit_pass.h/.cpp: WBOIT transparency compositing. Uses gpu:: builders and ShaderLoader.
 
-## Stub Files (Not Yet Implemented)
-- pass/render_pass_builder.cpp, pass/render_encoder.cpp
-- target/render_target.cpp
-- geometry/draw_command.cpp
-- post/fullscreen_quad.cpp
+## Previously Stub, Now Implemented
+- pass/render_pass_builder.cpp — Render pass descriptor builder + execution via lambda callback
+- pass/render_encoder.cpp — Unified pass/bundle encoder wrapper
+- target/render_target.cpp — Resizable GPU texture target (depth/color)
+- geometry/draw_command.cpp — DrawList + batched draw commands
+- post/fullscreen_quad.cpp — Screen-space triangle draw (3 verts, no buffer)
 
 ## Dawn WebGPU API Gotchas (Render-Specific)
 - `depthWriteEnabled` is `WGPUOptionalBool`, not bool. Use `WGPUOptionalBool_True`/`WGPUOptionalBool_False` (NOT `WGPU_TRUE`/`WGPU_FALSE`)
@@ -35,6 +36,12 @@
 - `WGPUStringView` for labels: `{str.data(), str.size()}`
 - Pipeline builders use rvalue-ref chaining: `Builder().Method1().Method2().Build()`
 - Keep attribute/blend vectors alive (on stack) until wgpuDeviceCreateRenderPipeline returns
+
+## Extension Interface
+- `object_renderer.h` defines `IObjectRenderer` — extension rendering interface
+- `IObjectRenderer` has NO dependency on database/simulate (core_render isolation preserved)
+- Concrete renderers in extensions hold `System&` reference for `GetDeviceBuffer<T>()` access
+- `GetOrder()` sorts renderers (lower = earlier, default 1000)
 
 ## Conventions
 - Forward-declare WebGPU types in headers (no webgpu.h includes)

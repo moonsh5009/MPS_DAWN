@@ -18,5 +18,4 @@ The `core_database` module lives at `src/core_database/` and provides an ECS (En
 - Namespace: `mps::database`
 
 ## Build Notes
-- The stub CMakeLists.txt existed but `src/CMakeLists.txt` did NOT include `add_subdirectory(core_database)` — had to add it
 - Library output: `build/lib/x64/Debug/core_database.lib`

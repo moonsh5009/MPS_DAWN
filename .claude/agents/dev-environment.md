@@ -43,7 +43,7 @@ Key cache variables set in root `CMakeLists.txt`:
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | *(omit for project-wide)*
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_sample` | *(omit for project-wide)*
 
 Examples: `feat(core_platform): add input manager with keyboard and mouse support`, `chore: add GLFW as git submodule`
 

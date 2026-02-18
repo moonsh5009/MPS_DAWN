@@ -29,14 +29,27 @@ C++20 WebGPU graphics engine using Dawn (native) and Emscripten (WASM). CMake st
 
 ```
 src/main.cpp (executable: mps_dawn)
-  ├── core_system     (mps::core_system)   — controller: orchestrates database + simulate + render
+  ├── core_system     (mps::core_system)   — controller: orchestrates database + simulate + render + extensions
   │     ├── core_database  (mps::core_database)  — host ECS (entities, components, transactions, undo/redo)
-  │     ├── core_simulate  (mps::core_simulate)  — device DB (GPU buffer mirrors of host ECS data)
-  │     └── core_render    (mps::core_render)    — rendering pipeline (camera, passes, post-processing)
+  │     ├── core_simulate  (mps::core_simulate)  — device DB (GPU buffer mirrors) + ISimulator interface
+  │     └── core_render    (mps::core_render)    — rendering pipeline (camera, passes) + IObjectRenderer interface
   ├── core_gpu       (mps::core_gpu)       — WebGPU abstraction (device, buffers, shaders, textures, builders, surface)
   ├── core_platform  (mps::core_platform)  — window, input
-  └── core_util      (mps::core_util)      — types, logger, timer, math
+  ├── core_util      (mps::core_util)      — types, logger, timer, math
+  └── ext_sample     (mps::ext_sample)     — sample extension (links core_system)
+
+extensions/ext_sample/   — static library plugin, registers components + simulator + renderer
 ```
+
+### Extension System
+
+Static plugin architecture (no dynamic loading, WASM compatible). Core modules define interfaces; extensions inherit and register via `System`.
+
+| Interface | Module | Purpose |
+|-----------|--------|---------|
+| `IExtension` | core_system | Entry point: `Register(System&)` — registers components, simulators, renderers |
+| `ISimulator` | core_simulate | Per-frame simulation: `Update(Database&, dt)`, wrapped in transaction |
+| `IObjectRenderer` | core_render | Rendering: `Render(RenderEngine&, WGPURenderPassEncoder)` |
 
 ### Third-Party Dependencies (`third_party/`, git submodules)
 
@@ -48,7 +61,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 
 ### Namespaces
 
-`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system)
+`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system) | `ext_sample` (sample extension — not under `mps`)
 
 ## Key Coding Conventions
 
@@ -72,7 +85,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | *(omit for project-wide)*
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_sample` | *(omit for project-wide)*
 
 ## Agent System
 

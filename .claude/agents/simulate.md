@@ -15,7 +15,8 @@ Owns the `core_simulate` module. Manages GPU buffer mirroring of host ECS data (
 src/core_simulate/
 ├── CMakeLists.txt           # STATIC library → mps::core_simulate (depends: core_util, core_gpu, core_database)
 ├── device_buffer_entry.h    # IDeviceBufferEntry, DeviceBufferEntry<T> (type-erased GPU buffer wrapper)
-└── device_db.h / device_db.cpp  # DeviceDB (GPU mirrors of host ECS data)
+├── device_db.h / device_db.cpp  # DeviceDB (GPU mirrors of host ECS data)
+└── simulator.h              # ISimulator interface (for extensions)
 ```
 
 ## Key Types
@@ -25,6 +26,7 @@ src/core_simulate/
 | `IDeviceBufferEntry` | `device_buffer_entry.h` | Type-erased base for GPU buffer entries |
 | `DeviceBufferEntry<T>` | `device_buffer_entry.h` | Owns `gpu::GPUBuffer<T>`, syncs from `IComponentStorage` |
 | `DeviceDB` | `device_db.h` | Registers component types, syncs dirty data to GPU |
+| `ISimulator` | `simulator.h` | Extension interface: `Update(Database&, dt)`, managed by System |
 
 ## DeviceDB API
 

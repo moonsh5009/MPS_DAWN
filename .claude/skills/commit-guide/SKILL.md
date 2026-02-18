@@ -48,6 +48,7 @@ Use the module name without `mps::` prefix:
 | `core_render` | rendering pipeline |
 | `core_simulate` | simulation, device DB |
 | `core_system` | system controller |
+| `ext_sample` | sample extension |
 | *(omit)* | project-wide or non-module changes |
 
 Multiple modules affected → omit scope, mention in description.
