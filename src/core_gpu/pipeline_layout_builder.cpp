@@ -15,7 +15,7 @@ PipelineLayoutBuilder&& PipelineLayoutBuilder::AddBindGroupLayout(
     return std::move(*this);
 }
 
-WGPUPipelineLayout PipelineLayoutBuilder::Build() && {
+GPUPipelineLayout PipelineLayoutBuilder::Build() && {
     auto& gpu = GPUCore::GetInstance();
 
     WGPUPipelineLayoutDescriptor desc = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
@@ -23,7 +23,7 @@ WGPUPipelineLayout PipelineLayoutBuilder::Build() && {
     desc.bindGroupLayoutCount = layouts_.size();
     desc.bindGroupLayouts = layouts_.data();
 
-    return wgpuDeviceCreatePipelineLayout(gpu.GetDevice(), &desc);
+    return GPUPipelineLayout(wgpuDeviceCreatePipelineLayout(gpu.GetDevice(), &desc));
 }
 
 }  // namespace gpu

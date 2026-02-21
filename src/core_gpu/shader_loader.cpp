@@ -1,4 +1,5 @@
 #include "core_gpu/shader_loader.h"
+#include "core_gpu/asset_path.h"
 #include "core_util/logger.h"
 #include <fstream>
 #include <sstream>
@@ -6,11 +7,6 @@
 #include <unordered_set>
 #include <filesystem>
 #include <functional>
-
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 
 using namespace mps::util;
 
@@ -20,26 +16,7 @@ namespace gpu {
 // -- Base path resolution -----------------------------------------------------
 
 std::string ShaderLoader::ResolveBasePath() {
-    // Try relative to CWD
-    if (std::filesystem::exists("shaders/"))
-        return "shaders/";
-    if (std::filesystem::exists("../shaders/"))
-        return "../shaders/";
-
-    // Try relative to executable directory
-#ifdef _WIN32
-    char buf[MAX_PATH];
-    DWORD len = GetModuleFileNameA(NULL, buf, MAX_PATH);
-    if (len > 0 && len < MAX_PATH) {
-        auto exe_dir = std::filesystem::path(buf).parent_path();
-        auto shader_dir = exe_dir / "shaders";
-        if (std::filesystem::exists(shader_dir))
-            return (shader_dir / "").string();  // trailing separator
-    }
-#endif
-
-    LogWarning("Shader base path not found, defaulting to shaders/");
-    return "shaders/";
+    return ResolveAssetPath("shaders/");
 }
 
 // -- Source loading with #import support ---------------------------------------
@@ -48,7 +25,6 @@ std::string ShaderLoader::LoadSource(const std::string& path) {
     static std::string base = ResolveBasePath();
 
     std::string source;
-    const std::regex dir_pattern{"\\w+\\.wgsl"};
     const std::regex import_pattern{R"_(^[ \t]*#import[ \t]+"(.*)"\s*$)_", std::regex::optimize};
     std::unordered_set<std::string> processed;
 
@@ -56,7 +32,6 @@ std::string ShaderLoader::LoadSource(const std::string& path) {
     read_source = [&](const std::string& file_path) {
         auto normalized = std::filesystem::path(file_path).lexically_normal().string();
         if (!processed.emplace(normalized).second) return;
-        auto path_dir = std::regex_replace(normalized, dir_pattern, "");
 
         std::ifstream file(normalized);
         if (!file.is_open()) {
@@ -71,13 +46,7 @@ std::string ShaderLoader::LoadSource(const std::string& path) {
         std::smatch matches;
         while (std::getline(ss, line)) {
             if (std::regex_search(line, matches, import_pattern)) {
-                auto import_file = matches[1].str();
-                auto relative_path = path_dir + import_file;
-                auto rel_normalized = std::filesystem::path(relative_path).lexically_normal().string();
-                if (std::filesystem::exists(rel_normalized))
-                    read_source(relative_path);
-                else
-                    read_source(base + import_file);
+                read_source(base + matches[1].str());
             }
             else
                 source.append(line + '\n');

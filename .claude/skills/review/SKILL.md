@@ -128,7 +128,7 @@ cmd //c "C:\emsdk\emsdk_env.bat >nul 2>&1 && set PATH=<ninja-path>;%PATH% && emc
 
 - [ ] CMake configures with Emscripten toolchain
 - [ ] Build completes without errors
-- [ ] Output: `build-wasm/bin/wasm/mps_dawn.html`
+- [ ] Output: `build-wasm/bin/Debug/mps_dawn.html`
 
 ### Common Build Issues
 

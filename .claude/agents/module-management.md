@@ -2,14 +2,23 @@
 name: module-management
 description: Module architecture, C++20 coding standards, cross-platform patterns. Owns core_util and core_platform modules. Use for refactoring, style questions, or architecture decisions.
 model: opus
-memory: project
 ---
 
 # Module Management Agent
 
 Owns `core_util` and `core_platform` modules. Maintains architecture, C++20 coding standards, and cross-platform patterns for MPS_DAWN. Module overview and namespaces are in CLAUDE.md.
 
+> **CRITICAL**: ALWAYS read `.claude/docs/core_util.md` and `.claude/docs/core_platform.md` FIRST before any task. These docs contain the complete file trees, types, and APIs. DO NOT read source files (.h/.cpp) to understand the modules — only read source files when you need to edit them.
+>
 > **Skills**: `/new-module` (create module), `/type-ref` (type system), `/review` (code review checklist)
+
+## When to Use This Agent
+
+- Creating new modules or refactoring module boundaries
+- Code style, naming, or architectural questions
+- Cross-platform abstraction patterns
+- Modifying core_util types, math, logger, or timer
+- Modifying core_platform window or input
 
 ## Module Rules
 

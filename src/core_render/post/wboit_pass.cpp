@@ -14,10 +14,7 @@ namespace mps {
 namespace render {
 
 WBOITPass::WBOITPass() = default;
-WBOITPass::~WBOITPass() {
-    if (compose_pipeline_) wgpuRenderPipelineRelease(compose_pipeline_);
-    if (compose_bgl_) wgpuBindGroupLayoutRelease(compose_bgl_);
-}
+WBOITPass::~WBOITPass() = default;
 
 WBOITPass::WBOITPass(WBOITPass&&) noexcept = default;
 WBOITPass& WBOITPass::operator=(WBOITPass&&) noexcept = default;
@@ -35,7 +32,7 @@ void WBOITPass::Initialize(gpu::TextureFormat output_format) {
         .Build();
 
     auto pipeline_layout = gpu::PipelineLayoutBuilder("wboit_compose_layout")
-        .AddBindGroupLayout(compose_bgl_)
+        .AddBindGroupLayout(compose_bgl_.GetHandle())
         .Build();
 
     gpu::SamplerConfig sampler_config;
@@ -45,14 +42,14 @@ void WBOITPass::Initialize(gpu::TextureFormat output_format) {
     sampler_ = std::make_unique<gpu::GPUSampler>(sampler_config);
 
     compose_pipeline_ = RenderPipelineBuilder("wboit_compose_pipeline")
-        .SetPipelineLayout(pipeline_layout)
+        .SetPipelineLayout(pipeline_layout.GetHandle())
         .SetVertexShader(vert_shader.GetHandle())
         .SetFragmentShader(frag_shader.GetHandle())
         .AddColorTarget(output_format)
         .SetPrimitive(gpu::PrimitiveTopology::TriangleList, CullMode::None, FrontFace::CCW)
         .Build();
 
-    wgpuPipelineLayoutRelease(pipeline_layout);
+    // pipeline_layout auto-released via GPUPipelineLayout RAII
     initialized_ = true;
 }
 
@@ -123,11 +120,11 @@ void WBOITPass::Compose(WGPUCommandEncoder encoder, WGPUTextureView output_view)
     if (!initialized_ || !accum_texture_ || !reveal_texture_) return;
 
     // Create bind group with accum view, reveal view, and sampler
-    WGPUBindGroup bind_group = gpu::BindGroupBuilder("wboit_compose_bg")
+    auto bind_group = gpu::BindGroupBuilder("wboit_compose_bg")
         .AddTextureView(0, accum_texture_->GetView())
         .AddTextureView(1, reveal_texture_->GetView())
         .AddSampler(2, sampler_->GetHandle())
-        .Build(compose_bgl_);
+        .Build(compose_bgl_.GetHandle());
 
     // Render pass with output view (load=Load to preserve opaque content, store=Store)
     WGPURenderPassColorAttachment color_att = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
@@ -141,13 +138,13 @@ void WBOITPass::Compose(WGPUCommandEncoder encoder, WGPUTextureView output_view)
     desc.colorAttachments = &color_att;
 
     WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &desc);
-    wgpuRenderPassEncoderSetPipeline(pass, compose_pipeline_);
-    wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, nullptr);
+    wgpuRenderPassEncoderSetPipeline(pass, compose_pipeline_.GetHandle());
+    wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group.GetHandle(), 0, nullptr);
     FullscreenQuad::Draw(pass);
     wgpuRenderPassEncoderEnd(pass);
     wgpuRenderPassEncoderRelease(pass);
 
-    wgpuBindGroupRelease(bind_group);
+    // bind_group auto-released via GPUBindGroup RAII
 }
 
 }  // namespace render

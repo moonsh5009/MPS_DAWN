@@ -15,6 +15,7 @@ target_include_directories(core_system PUBLIC
 
 target_link_libraries(core_system PUBLIC
     mps::core_util
+    mps::core_platform
     mps::core_gpu
     mps::core_database
     mps::core_simulate

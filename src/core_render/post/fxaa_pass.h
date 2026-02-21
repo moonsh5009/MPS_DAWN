@@ -2,6 +2,7 @@
 
 #include "core_render/render_types.h"
 #include "core_gpu/gpu_types.h"
+#include "core_gpu/gpu_handle.h"
 #include <memory>
 
 namespace mps {
@@ -23,8 +24,8 @@ public:
                  WGPUTextureView output_view, uint32 width, uint32 height);
 
 private:
-    WGPURenderPipeline pipeline_ = nullptr;
-    WGPUBindGroupLayout bind_group_layout_ = nullptr;
+    gpu::GPURenderPipeline pipeline_;
+    gpu::GPUBindGroupLayout bind_group_layout_;
     std::unique_ptr<gpu::GPUSampler> sampler_;
     bool initialized_ = false;
 };

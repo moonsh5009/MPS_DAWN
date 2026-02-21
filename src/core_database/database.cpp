@@ -18,6 +18,12 @@ void Database::DestroyEntity(Entity entity) {
             storage->RemoveByEntity(entity);
         }
     }
+    // Remove the entity's arrays from all array storages
+    for (auto& [id, storage] : array_storages_) {
+        if (storage->Has(entity)) {
+            storage->Remove(entity);
+        }
+    }
     entity_manager_.Destroy(entity);
 }
 
@@ -94,4 +100,31 @@ void Database::ClearAllDirty() {
     for (auto& [id, storage] : storages_) {
         storage->ClearDirty();
     }
+    for (auto& [id, storage] : array_storages_) {
+        storage->ClearDirty();
+    }
+}
+
+// --- Array storage access ---
+
+IArrayStorage* Database::GetArrayStorageById(ComponentTypeId id) {
+    auto it = array_storages_.find(id);
+    if (it == array_storages_.end()) return nullptr;
+    return it->second.get();
+}
+
+const IArrayStorage* Database::GetArrayStorageById(ComponentTypeId id) const {
+    auto it = array_storages_.find(id);
+    if (it == array_storages_.end()) return nullptr;
+    return it->second.get();
+}
+
+std::vector<ComponentTypeId> Database::GetDirtyArrayTypeIds() const {
+    std::vector<ComponentTypeId> result;
+    for (const auto& [id, storage] : array_storages_) {
+        if (storage->IsDirty()) {
+            result.push_back(id);
+        }
+    }
+    return result;
 }

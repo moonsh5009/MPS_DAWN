@@ -1,2 +1,4 @@
 add_subdirectory(ext_sample)
-add_subdirectory(ext_cloth)
+add_subdirectory(ext_dynamics)
+add_subdirectory(ext_newton)
+add_subdirectory(ext_mesh)

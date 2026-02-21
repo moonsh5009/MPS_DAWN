@@ -5,18 +5,20 @@ project(MPS_DAWN CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Organize build outputs
-# Static libraries (.lib, .a) -> lib/x64/Debug or lib/x64/Release
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/x64/Debug)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/x64/Release)
-# DLLs (.dll) -> bin/x64/Debug or bin/x64/Release (same as executables)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/x64/Debug)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/x64/Release)
-# Note: Object files (*.obj) in .dir folders are controlled by Visual Studio generator
+# Organize build outputs (native only — WASM uses per-target properties)
+if(NOT EMSCRIPTEN)
+    # Static libraries (.lib) -> lib/x64/Debug or lib/x64/Release
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/x64/Debug)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/x64/Release)
+    # Executables (.exe) -> bin/x64/Debug or bin/x64/Release
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/x64/Debug)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/x64/Release)
+endif()
 
 # Compiler-specific settings
 if(MSVC)
     add_compile_options(/FS)      # Fix PDB file conflicts during parallel builds
+    add_compile_options(/utf-8)   # Source and execution charset UTF-8 (suppresses C4819)
     add_compile_options(/wd4100)  # Suppress unused parameter warnings
 else()
     add_compile_options(-Wno-unused-parameter)
@@ -30,6 +32,13 @@ if(EMSCRIPTEN)
     set(DAWN_ENABLE_VULKAN OFF)
     set(DAWN_ENABLE_DESKTOP_GL OFF)
     set(DAWN_ENABLE_OPENGLES OFF)
+
+    # 64-bit WASM (Memory64): 8-byte pointers and size_t
+    add_compile_options(-sMEMORY64)
+    add_link_options(-sMEMORY64)
+
+    # Memory: allow growth, 128MB initial, 4GB max
+    add_link_options(-sALLOW_MEMORY_GROWTH -sINITIAL_MEMORY=134217728 -sMAXIMUM_MEMORY=4294967296)
 endif()
 
 # Dawn library configuration

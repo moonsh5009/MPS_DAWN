@@ -7,11 +7,13 @@ add_library(core_gpu STATIC
     gpu_shader.cpp
     gpu_texture.cpp
     gpu_sampler.cpp
+    gpu_handle.cpp
     bind_group_layout_builder.cpp
     bind_group_builder.cpp
     pipeline_layout_builder.cpp
     surface_manager.cpp
     shader_loader.cpp
+    asset_path.cpp
     compute_pipeline_builder.cpp
     compute_encoder.cpp
 )

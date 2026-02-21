@@ -9,6 +9,14 @@ namespace gpu {
 BindGroupBuilder::BindGroupBuilder(const std::string& label)
     : label_(label) {}
 
+BindGroupBuilder& BindGroupBuilder::operator=(BindGroupBuilder&& other) noexcept {
+    if (this != &other) {
+        entries_ = std::move(other.entries_);
+        label_ = std::move(other.label_);
+    }
+    return *this;
+}
+
 BindGroupBuilder&& BindGroupBuilder::AddBuffer(
     uint32 binding, WGPUBuffer buffer, uint64 size, uint64 offset) && {
     Entry entry;
@@ -38,7 +46,7 @@ BindGroupBuilder&& BindGroupBuilder::AddSampler(
     return std::move(*this);
 }
 
-WGPUBindGroup BindGroupBuilder::Build(WGPUBindGroupLayout layout) && {
+GPUBindGroup BindGroupBuilder::Build(WGPUBindGroupLayout layout) && {
     auto& gpu = GPUCore::GetInstance();
 
     std::vector<WGPUBindGroupEntry> wgpu_entries;
@@ -67,7 +75,7 @@ WGPUBindGroup BindGroupBuilder::Build(WGPUBindGroupLayout layout) && {
     desc.entryCount = wgpu_entries.size();
     desc.entries = wgpu_entries.data();
 
-    return wgpuDeviceCreateBindGroup(gpu.GetDevice(), &desc);
+    return GPUBindGroup(wgpuDeviceCreateBindGroup(gpu.GetDevice(), &desc));
 }
 
 }  // namespace gpu

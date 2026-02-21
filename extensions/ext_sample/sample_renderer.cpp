@@ -41,16 +41,16 @@ void SampleRenderer::Initialize(RenderEngine& engine) {
     // Camera bind group
     bind_group_ = BindGroupBuilder("sample_camera_bg")
         .AddBuffer(0, engine.GetCameraUniform().GetBuffer(), sizeof(CameraUBOData))
-        .Build(bind_group_layout_);
+        .Build(bind_group_layout_.GetHandle());
 
     // Pipeline layout
     auto pipeline_layout = PipelineLayoutBuilder("sample_layout")
-        .AddBindGroupLayout(bind_group_layout_)
+        .AddBindGroupLayout(bind_group_layout_.GetHandle())
         .Build();
 
     // Render pipeline — PointList topology, no index buffer
     pipeline_ = RenderPipelineBuilder("sample_point_pipeline")
-        .SetPipelineLayout(pipeline_layout)
+        .SetPipelineLayout(pipeline_layout.GetHandle())
         .SetVertexShader(vert_shader.GetHandle())
         .SetFragmentShader(frag_shader.GetHandle())
         .AddVertexBufferLayout(VertexStepMode::Vertex, sizeof(SampleTransform), {
@@ -61,13 +61,13 @@ void SampleRenderer::Initialize(RenderEngine& engine) {
         .SetPrimitive(PrimitiveTopology::PointList, CullMode::None, FrontFace::CCW)
         .Build();
 
-    wgpuPipelineLayoutRelease(pipeline_layout);
+    // pipeline_layout auto-released via GPUPipelineLayout RAII
 
     LogInfo("SampleRenderer: pipeline created");
 }
 
 void SampleRenderer::Render(RenderEngine& engine, WGPURenderPassEncoder pass) {
-    if (!pipeline_) return;
+    if (!pipeline_.IsValid()) return;
 
     WGPUBuffer buffer = system_.GetDeviceBuffer<SampleTransform>();
     if (!buffer) return;
@@ -75,10 +75,9 @@ void SampleRenderer::Render(RenderEngine& engine, WGPURenderPassEncoder pass) {
     // Recreate bind group if camera buffer changed (e.g. after resize)
     WGPUBuffer camera_buf = engine.GetCameraUniform().GetBuffer();
     if (camera_buf) {
-        wgpuBindGroupRelease(bind_group_);
         bind_group_ = BindGroupBuilder("sample_camera_bg")
             .AddBuffer(0, camera_buf, sizeof(CameraUBOData))
-            .Build(bind_group_layout_);
+            .Build(bind_group_layout_.GetHandle());
     }
 
     // Get entity count from the database storage
@@ -95,25 +94,17 @@ void SampleRenderer::Render(RenderEngine& engine, WGPURenderPassEncoder pass) {
     if (count == 0) return;
 
     RenderEncoder enc(pass);
-    enc.SetPipeline(pipeline_);
-    enc.SetBindGroup(0, bind_group_);
+    enc.SetPipeline(pipeline_.GetHandle());
+    enc.SetBindGroup(0, bind_group_.GetHandle());
     enc.SetVertexBuffer(0, buffer);
     enc.Draw(count);
 }
 
 void SampleRenderer::Shutdown() {
-    if (pipeline_) {
-        wgpuRenderPipelineRelease(pipeline_);
-        pipeline_ = nullptr;
-    }
-    if (bind_group_) {
-        wgpuBindGroupRelease(bind_group_);
-        bind_group_ = nullptr;
-    }
-    if (bind_group_layout_) {
-        wgpuBindGroupLayoutRelease(bind_group_layout_);
-        bind_group_layout_ = nullptr;
-    }
+    // All handles auto-released via RAII
+    pipeline_ = {};
+    bind_group_ = {};
+    bind_group_layout_ = {};
     LogInfo("SampleRenderer: shutdown");
 }
 

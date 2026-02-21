@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core_platform/input.h"
 #include "core_platform/window.h"
 
 namespace mps {
@@ -33,6 +34,12 @@ public:
     void* GetNativeDisplayHandle() const override;
 
 private:
+    void RegisterInputCallbacks();
+
+    // Static input event handlers
+    static Key MapDOMKeyCode(unsigned long code, unsigned long location);
+    static MouseButton MapDOMMouseButton(unsigned short button);
+
     WindowConfig config_;
     bool should_close_ = false;
     bool is_focused_ = true;

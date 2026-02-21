@@ -57,7 +57,7 @@ RenderPipelineBuilder&& RenderPipelineBuilder::SetPrimitive(
     return std::move(*this);
 }
 
-WGPURenderPipeline RenderPipelineBuilder::Build() && {
+gpu::GPURenderPipeline RenderPipelineBuilder::Build() && {
     auto& gpu = gpu::GPUCore::GetInstance();
 
     // -- Vertex attributes and buffer layouts --
@@ -151,7 +151,7 @@ WGPURenderPipeline RenderPipelineBuilder::Build() && {
         desc.depthStencil = &depth_stencil_state;
     }
 
-    return wgpuDeviceCreateRenderPipeline(gpu.GetDevice(), &desc);
+    return gpu::GPURenderPipeline(wgpuDeviceCreateRenderPipeline(gpu.GetDevice(), &desc));
 }
 
 }  // namespace render

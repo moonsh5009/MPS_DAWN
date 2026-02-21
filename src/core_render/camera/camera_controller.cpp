@@ -16,16 +16,17 @@ CameraController::CameraController(Camera& camera, const CameraControllerConfig&
 void CameraController::Update(float32 dt) {
     auto& input = InputManager::GetInstance();
 
-    // Left mouse = orbit
-    if (input.IsMouseButtonHeld(MouseButton::Left)) {
-        auto delta = input.GetMouseDelta();
-        camera_.Orbit(-delta.x * config_.orbit_speed, -delta.y * config_.orbit_speed);
-    }
+    bool ctrl_held = input.IsKeyHeld(Key::LeftControl) || input.IsKeyHeld(Key::RightControl);
 
-    // Right mouse = pan
-    if (input.IsMouseButtonHeld(MouseButton::Right)) {
+    if (input.IsMouseButtonHeld(MouseButton::Middle)) {
         auto delta = input.GetMouseDelta();
-        camera_.Pan(-delta.x * config_.pan_speed, delta.y * config_.pan_speed);
+        if (ctrl_held) {
+            // Ctrl + middle mouse = orbit
+            camera_.Orbit(-delta.x * config_.orbit_speed, delta.y * config_.orbit_speed);
+        } else {
+            // Middle mouse = pan
+            camera_.Pan(-delta.x * config_.pan_speed, delta.y * config_.pan_speed);
+        }
     }
 
     // Scroll = zoom

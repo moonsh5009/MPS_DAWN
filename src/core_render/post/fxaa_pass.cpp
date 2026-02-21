@@ -13,10 +13,7 @@ namespace mps {
 namespace render {
 
 FXAAPass::FXAAPass() = default;
-FXAAPass::~FXAAPass() {
-    if (pipeline_) wgpuRenderPipelineRelease(pipeline_);
-    if (bind_group_layout_) wgpuBindGroupLayoutRelease(bind_group_layout_);
-}
+FXAAPass::~FXAAPass() = default;
 
 FXAAPass::FXAAPass(FXAAPass&&) noexcept = default;
 FXAAPass& FXAAPass::operator=(FXAAPass&&) noexcept = default;
@@ -31,7 +28,7 @@ void FXAAPass::Initialize(gpu::TextureFormat output_format) {
         .Build();
 
     auto pipeline_layout = gpu::PipelineLayoutBuilder("fxaa_layout")
-        .AddBindGroupLayout(bind_group_layout_)
+        .AddBindGroupLayout(bind_group_layout_.GetHandle())
         .Build();
 
     gpu::SamplerConfig sampler_config;
@@ -41,14 +38,14 @@ void FXAAPass::Initialize(gpu::TextureFormat output_format) {
     sampler_ = std::make_unique<gpu::GPUSampler>(sampler_config);
 
     pipeline_ = RenderPipelineBuilder("fxaa_pipeline")
-        .SetPipelineLayout(pipeline_layout)
+        .SetPipelineLayout(pipeline_layout.GetHandle())
         .SetVertexShader(vert_shader.GetHandle())
         .SetFragmentShader(frag_shader.GetHandle())
         .AddColorTarget(output_format)
         .SetPrimitive(gpu::PrimitiveTopology::TriangleList, CullMode::None, FrontFace::CCW)
         .Build();
 
-    wgpuPipelineLayoutRelease(pipeline_layout);
+    // pipeline_layout auto-released via GPUPipelineLayout RAII
     initialized_ = true;
 }
 
@@ -57,10 +54,10 @@ void FXAAPass::Execute(WGPUCommandEncoder encoder, WGPUTextureView input_view,
     if (!initialized_) return;
 
     // Create bind group with input texture and sampler
-    WGPUBindGroup bind_group = gpu::BindGroupBuilder("fxaa_bg")
+    auto bind_group = gpu::BindGroupBuilder("fxaa_bg")
         .AddTextureView(0, input_view)
         .AddSampler(1, sampler_->GetHandle())
-        .Build(bind_group_layout_);
+        .Build(bind_group_layout_.GetHandle());
 
     // Begin render pass targeting the output view
     WGPURenderPassColorAttachment color_att = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
@@ -74,13 +71,13 @@ void FXAAPass::Execute(WGPUCommandEncoder encoder, WGPUTextureView input_view,
     desc.colorAttachments = &color_att;
 
     WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &desc);
-    wgpuRenderPassEncoderSetPipeline(pass, pipeline_);
-    wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, nullptr);
+    wgpuRenderPassEncoderSetPipeline(pass, pipeline_.GetHandle());
+    wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group.GetHandle(), 0, nullptr);
     FullscreenQuad::Draw(pass);
     wgpuRenderPassEncoderEnd(pass);
     wgpuRenderPassEncoderRelease(pass);
 
-    wgpuBindGroupRelease(bind_group);
+    // bind_group auto-released via GPUBindGroup RAII
 }
 
 }  // namespace render

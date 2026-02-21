@@ -2,6 +2,7 @@
 
 #include "core_render/render_types.h"
 #include "core_gpu/gpu_types.h"
+#include "core_gpu/gpu_handle.h"
 #include <vector>
 #include <string>
 #include <optional>
@@ -39,7 +40,7 @@ public:
                                           CullMode cull = CullMode::Back,
                                           FrontFace front = FrontFace::CCW) &&;
 
-    WGPURenderPipeline Build() &&;
+    gpu::GPURenderPipeline Build() &&;
 
 private:
     std::string label_;

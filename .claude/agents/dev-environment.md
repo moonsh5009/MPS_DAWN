@@ -2,13 +2,14 @@
 name: dev-environment
 description: CMake build system, Git workflow, compiler settings. Use for build issues, CI/CD, or commit/branch conventions.
 model: opus
-memory: project
 ---
 
 # Dev Environment Agent
 
 Owns the CMake build system, Git workflow, and development tooling for MPS_DAWN. Build commands are in CLAUDE.md.
 
+> **CRITICAL**: ALWAYS read the relevant `.claude/docs/<module>.md` FIRST before investigating any module. These docs contain the complete file tree, types, APIs, and shader references. DO NOT read source files (.h/.cpp) to understand a module — only read source files when you need to see implementation details or edit them.
+>
 > **Skills**: `/new-module` (CMake template), `/add-dep` (add third-party dependency)
 
 ## Build Output Structure
@@ -30,7 +31,7 @@ Key cache variables set in root `CMakeLists.txt`:
 |----------|-------|---------|
 | `DAWN_FETCH_DEPENDENCIES` | ON | Auto-fetch Dawn's transitive deps |
 | `DAWN_BUILD_SAMPLES` | OFF | Skip sample programs |
-| `DAWN_FORCE_SYSTEM_COMPONENT_LOAD` | ON | Load DLLs from System32 (avoids path mismatch with custom output dirs) |
+| `DAWN_FORCE_SYSTEM_COMPONENT_LOAD` | ON | Load DLLs from System32 (avoids path mismatch) |
 | `TINT_BUILD_CMD_TOOLS` | OFF | Skip Tint CLI tools |
 | `TINT_BUILD_TESTS` | OFF | Skip Tint tests |
 
@@ -43,9 +44,7 @@ Key cache variables set in root `CMakeLists.txt`:
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_cloth` | `ext_sample` | *(omit for project-wide)*
-
-Examples: `feat(core_platform): add input manager with keyboard and mouse support`, `chore: add GLFW as git submodule`
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_newton` | `ext_dynamics` | `ext_mesh` | `ext_sample` | *(omit for project-wide)*
 
 ### Branch Naming
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core_gpu/gpu_types.h"
+#include "core_gpu/gpu_handle.h"
 #include <vector>
 #include <string>
 
@@ -8,7 +9,6 @@
 struct WGPUBufferImpl;           typedef WGPUBufferImpl*          WGPUBuffer;
 struct WGPUTextureViewImpl;      typedef WGPUTextureViewImpl*     WGPUTextureView;
 struct WGPUSamplerImpl;          typedef WGPUSamplerImpl*         WGPUSampler;
-struct WGPUBindGroupImpl;        typedef WGPUBindGroupImpl*       WGPUBindGroup;
 struct WGPUBindGroupLayoutImpl;  typedef WGPUBindGroupLayoutImpl* WGPUBindGroupLayout;
 
 namespace mps {
@@ -22,13 +22,13 @@ public:
     BindGroupBuilder(const BindGroupBuilder&) = delete;
     BindGroupBuilder& operator=(const BindGroupBuilder&) = delete;
     BindGroupBuilder(BindGroupBuilder&&) noexcept = default;
-    BindGroupBuilder& operator=(BindGroupBuilder&&) noexcept = default;
+    BindGroupBuilder& operator=(BindGroupBuilder&& other) noexcept;
 
     BindGroupBuilder&& AddBuffer(uint32 binding, WGPUBuffer buffer, uint64 size, uint64 offset = 0) &&;
     BindGroupBuilder&& AddTextureView(uint32 binding, WGPUTextureView view) &&;
     BindGroupBuilder&& AddSampler(uint32 binding, WGPUSampler sampler) &&;
 
-    WGPUBindGroup Build(WGPUBindGroupLayout layout) &&;
+    GPUBindGroup Build(WGPUBindGroupLayout layout) &&;
 
 private:
     struct Entry {

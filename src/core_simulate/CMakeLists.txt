@@ -3,6 +3,8 @@
 # Create core_simulate library
 add_library(core_simulate STATIC
     device_db.cpp
+    dynamics_term.cpp
+    cg_solver.cpp
 )
 
 # Set target properties

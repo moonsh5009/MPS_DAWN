@@ -36,8 +36,9 @@ void InputManager::Update() {
     mouse_delta_ = mouse_position_ - prev_mouse_position_;
     prev_mouse_position_ = mouse_position_;
 
-    // Reset scroll (scroll is per-frame)
-    mouse_scroll_ = {0.0f, 0.0f};
+    // Scroll: consume pending (accumulated since last frame), reset pending
+    mouse_scroll_ = pending_scroll_;
+    pending_scroll_ = {0.0f, 0.0f};
 }
 
 void InputManager::SetKeyState(Key key, bool pressed) {
@@ -122,7 +123,14 @@ void InputManager::SetMousePosition(float32 x, float32 y) {
 }
 
 void InputManager::SetMouseScroll(float32 x, float32 y) {
-    mouse_scroll_ = {x, y};
+    // Direct set (used by native GLFW callback during PollEvents)
+    pending_scroll_ = {x, y};
+}
+
+void InputManager::AccumulateMouseScroll(float32 x, float32 y) {
+    // Accumulate (used by WASM async callbacks between frames)
+    pending_scroll_.x += x;
+    pending_scroll_.y += y;
 }
 
 InputManager& InputManager::GetInstance() {

@@ -3,15 +3,20 @@
 #include "core_simulate/simulator.h"
 #include <string>
 
+namespace mps { namespace system { class System; } }
+
 namespace ext_sample {
 
 class SampleSimulator : public mps::simulate::ISimulator {
 public:
+    explicit SampleSimulator(mps::system::System& system);
+
     [[nodiscard]] const std::string& GetName() const override;
-    void Initialize(mps::database::Database& db) override;
-    void Update(mps::database::Database& db, mps::float32 dt) override;
+    void Initialize() override;
+    void Update(mps::float32 dt) override;
 
 private:
+    mps::system::System& system_;
     static const std::string kName;
 };
 

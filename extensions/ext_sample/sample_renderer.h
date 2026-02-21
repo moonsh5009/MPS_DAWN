@@ -1,11 +1,8 @@
 #pragma once
 
 #include "core_render/object_renderer.h"
+#include "core_gpu/gpu_handle.h"
 #include <string>
-
-struct WGPURenderPipelineImpl;  typedef WGPURenderPipelineImpl* WGPURenderPipeline;
-struct WGPUBindGroupImpl;       typedef WGPUBindGroupImpl* WGPUBindGroup;
-struct WGPUBindGroupLayoutImpl; typedef WGPUBindGroupLayoutImpl* WGPUBindGroupLayout;
 
 namespace mps { namespace system { class System; } }
 
@@ -24,9 +21,9 @@ public:
 private:
     mps::system::System& system_;
 
-    WGPURenderPipeline pipeline_ = nullptr;
-    WGPUBindGroup bind_group_ = nullptr;
-    WGPUBindGroupLayout bind_group_layout_ = nullptr;
+    mps::gpu::GPURenderPipeline pipeline_;
+    mps::gpu::GPUBindGroup bind_group_;
+    mps::gpu::GPUBindGroupLayout bind_group_layout_;
 
     static const std::string kName;
 };

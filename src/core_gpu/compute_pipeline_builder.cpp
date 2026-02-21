@@ -22,7 +22,7 @@ ComputePipelineBuilder&& ComputePipelineBuilder::SetComputeShader(
     return std::move(*this);
 }
 
-WGPUComputePipeline ComputePipelineBuilder::Build() && {
+GPUComputePipeline ComputePipelineBuilder::Build() && {
     auto& gpu = GPUCore::GetInstance();
 
     WGPUComputePipelineDescriptor desc = WGPU_COMPUTE_PIPELINE_DESCRIPTOR_INIT;
@@ -31,7 +31,7 @@ WGPUComputePipeline ComputePipelineBuilder::Build() && {
     desc.compute.module = compute_shader_;
     desc.compute.entryPoint = {compute_entry_.data(), compute_entry_.size()};
 
-    return wgpuDeviceCreateComputePipeline(gpu.GetDevice(), &desc);
+    return GPUComputePipeline(wgpuDeviceCreateComputePipeline(gpu.GetDevice(), &desc));
 }
 
 }  // namespace gpu

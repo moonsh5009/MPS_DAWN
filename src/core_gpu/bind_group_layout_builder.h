@@ -1,11 +1,9 @@
 #pragma once
 
 #include "core_gpu/gpu_types.h"
+#include "core_gpu/gpu_handle.h"
 #include <vector>
 #include <string>
-
-// Forward declarations
-struct WGPUBindGroupLayoutImpl; typedef WGPUBindGroupLayoutImpl* WGPUBindGroupLayout;
 
 namespace mps {
 namespace gpu {
@@ -27,7 +25,7 @@ public:
     BindGroupLayoutBuilder&& AddTextureBinding(uint32 binding, ShaderStage visibility) &&;
     BindGroupLayoutBuilder&& AddSamplerBinding(uint32 binding, ShaderStage visibility) &&;
 
-    WGPUBindGroupLayout Build() &&;
+    GPUBindGroupLayout Build() &&;
 
 private:
     struct BindingEntry {

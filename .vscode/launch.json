@@ -29,9 +29,10 @@
             "name": "(WASM) Debug",
             "type": "chrome",
             "request": "launch",
-            "url": "http://localhost:8080/mps_dawn.html",
-            "webRoot": "${workspaceFolder}/build-wasm/bin/wasm",
-            "preLaunchTask": "WASM: Build (Debug)",
+            "url": "http://127.0.0.1:8080/mps_dawn.html",
+            "webRoot": "${workspaceFolder}/build-wasm/bin/Debug",
+            "preLaunchTask": "WASM: Build & Serve (Debug)",
+            "userDataDir": true,
             "sourceMapPathOverrides": {
                 "/*": "${workspaceFolder}/*"
             }
@@ -40,9 +41,10 @@
             "name": "(WASM) Release",
             "type": "chrome",
             "request": "launch",
-            "url": "http://localhost:8080/mps_dawn.html",
-            "webRoot": "${workspaceFolder}/build-wasm-release/bin/wasm",
-            "preLaunchTask": "WASM: Build (Release)",
+            "url": "http://127.0.0.1:8081/mps_dawn.html",
+            "webRoot": "${workspaceFolder}/build-wasm/bin/Release",
+            "preLaunchTask": "WASM: Build & Serve (Release)",
+            "userDataDir": true,
             "sourceMapPathOverrides": {
                 "/*": "${workspaceFolder}/*"
             }

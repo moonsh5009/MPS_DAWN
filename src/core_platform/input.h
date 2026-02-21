@@ -82,9 +82,10 @@ public:
     util::vec2 GetMousePosition() const { return mouse_position_; }
     util::vec2 GetMouseDelta() const { return mouse_delta_; }
 
-    // Mouse scroll
+    // Mouse scroll (accumulated between frames, consumed on Update)
     void SetMouseScroll(float32 x, float32 y);
     util::vec2 GetMouseScroll() const { return mouse_scroll_; }
+    void AccumulateMouseScroll(float32 x, float32 y);
 
     // Singleton access
     static InputManager& GetInstance();
@@ -103,8 +104,9 @@ private:
     util::vec2 prev_mouse_position_ = {0.0f, 0.0f};
     util::vec2 mouse_delta_ = {0.0f, 0.0f};
 
-    // Mouse scroll
+    // Mouse scroll (double-buffered for async WASM events)
     util::vec2 mouse_scroll_ = {0.0f, 0.0f};
+    util::vec2 pending_scroll_ = {0.0f, 0.0f};
 
 };
 

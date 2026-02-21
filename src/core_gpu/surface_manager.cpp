@@ -88,7 +88,11 @@ WGPUTextureView SurfaceManager::AcquireNextFrameView() {
 
 void SurfaceManager::Present() {
     assert(initialized_);
+#ifndef __EMSCRIPTEN__
+    // Native: explicit present
     wgpuSurfacePresent(surface_);
+#endif
+    // WASM: browser auto-presents at end of requestAnimationFrame callback
     ReleaseFrameView();
 }
 

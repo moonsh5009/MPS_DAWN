@@ -2,12 +2,13 @@
 name: build-debug
 description: Build, run, debug, and fix runtime errors. Use when you need to build the project, run the executable, capture output, diagnose GPU validation errors or crashes, add temporary debug logging, and clean up after fixing.
 model: opus
-memory: project
 ---
 
 # Build & Debug Agent
 
 Handles the full build-run-debug-fix cycle for MPS_DAWN. Owns no modules but operates across all of them to diagnose and fix issues.
+
+> **CRITICAL**: ALWAYS read the relevant `.claude/docs/<module>.md` FIRST before investigating any module. These docs contain the complete file tree, types, APIs, and shader references. DO NOT read source files (.h/.cpp) to understand a module — only read source files when you need to see implementation details or edit them.
 
 ## Core Workflow
 
@@ -66,71 +67,21 @@ cmd //c "schtasks /Run /TN MPS_DAWN_Test"
 sleep 10  # adjust based on expected runtime
 ```
 
-### Analyze output
-
-```bash
-# Check for errors/warnings (avoid matching "INFO" with case-insensitive "inf")
-grep -E "(ERROR|WARN|NaN|Validation|EXIT|shutdown|finished)" test_output.txt
-
-# Read full output
-cat test_output.txt
-```
-
-**IMPORTANT**: Use `python -c` with `os.path.join()` to create batch files. Never use bash heredoc or echo for `.bat` files — backslash escaping breaks Windows paths (e.g., `\r` → carriage return, `\b` → backspace, `\t` → tab).
+**IMPORTANT**: Use `python -c` with `os.path.join()` to create batch files. Never use bash heredoc or echo for `.bat` files — backslash escaping breaks Windows paths.
 
 ## Debug Logging Patterns
 
-### Adding temporary debug output
-
-Use `LogInfo(...)` from `core_util/logger.h` for temporary debug lines. Always prefix with `[DEBUG]` so they're easy to find and remove:
-
-```cpp
-LogInfo("[DEBUG] value=", some_value, " buffer_size=", size);
-```
-
-### GPU buffer readback for debugging
-
-To inspect GPU buffer contents, create a staging buffer and map it:
-
-```cpp
-// 1. Create staging buffer (MapRead + CopyDst)
-// 2. CopyBufferToBuffer in a command encoder
-// 3. Submit, then map with WaitAny
-// 4. Read and log the mapped data
-// 5. Unmap and release staging buffer
-```
-
-See `ClothSimulator::ReadbackPositionsVelocities()` for a working example.
-
-### Searching for debug code to clean up
-
-After fixing an issue, search for and remove all `[DEBUG]` lines:
-
-```bash
-grep -rn "\[DEBUG\]" extensions/ src/ shaders/
-```
+Use `LogInfo("[DEBUG] ...")` for temporary debug lines. Always prefix with `[DEBUG]` so they're easy to find and remove. After fixing, search and remove all `[DEBUG]` lines.
 
 ## Common Issues & Solutions
 
-### MSBuild exit code 1 false positive
-
-MSBuild sometimes returns exit code 1 even when the build succeeds. Always verify by checking if the `.exe` was produced.
-
-### Dawn validation errors
-
-Dawn auto-layout strips unused shader bindings. If a shader declares `@binding(N)` but never reads it, Dawn won't include it in the bind group layout. The C++ bind group must match the ACTUAL layout (only used bindings).
-
-### wgpuQueueWriteBuffer timing
-
-`wgpuQueueWriteBuffer` executes immediately on the queue, NOT within the command encoder timeline. If you need different uniform values for different compute passes within the same command buffer, create separate pre-built uniform buffers instead of calling WriteData between passes.
-
-### Fixed-point i32 overflow
-
-Buffers using `atomicAdd` with i32 and FP_SCALE (2^20) can overflow if accumulated values exceed ~2 billion. Monitor total contributions per element.
-
-### Buffer alignment mismatch
-
-WGSL `array<vec4f>` has 16-byte stride. Ensure the C++ struct backing it is also 16 bytes (add padding if needed). A struct with only 2 floats (8 bytes) will cause misaligned reads at stride 16.
+| Issue | Solution |
+|-------|----------|
+| MSBuild exit code 1 false positive | Verify `.exe` was produced |
+| Dawn validation errors | Dawn auto-layout strips unused shader bindings — bind group must match ACTUAL layout |
+| `wgpuQueueWriteBuffer` timing | Executes immediately on queue, not within encoder timeline — use separate buffers for different passes |
+| Fixed-point i32 overflow | Monitor total contributions per element with `atomicAdd` and `FP_SCALE` (2^20) |
+| Buffer alignment mismatch | WGSL `array<vec4f>` has 16-byte stride — C++ struct must match |
 
 ## Rules
 

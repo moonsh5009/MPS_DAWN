@@ -25,9 +25,11 @@ if(NOT EMSCRIPTEN)
         RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/x64/Release"
     )
 else()
-    # WASM build: bin/wasm/Debug or bin/wasm/Release
+    # WASM build: unified output under build-wasm/bin/<Config>
+    # Uses CMAKE_SOURCE_DIR so both debug and release builds (separate cmake dirs)
+    # output to the same tree: build-wasm/bin/Debug/ and build-wasm/bin/Release/
     set_target_properties(mps_dawn PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/wasm/${CMAKE_BUILD_TYPE}"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build-wasm/bin/${CMAKE_BUILD_TYPE}"
     )
 endif()
 
@@ -38,12 +40,22 @@ target_link_libraries(mps_dawn PRIVATE
     mps::core_gpu
     mps::core_render
     mps::core_system
-    mps::ext_cloth
+    mps::ext_newton
+    mps::ext_mesh
+    mps::ext_dynamics
 )
 
-# Copy shaders to output directory (next to executable)
-add_custom_command(TARGET mps_dawn POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:mps_dawn>/shaders
-    COMMENT "Copying shaders to output directory"
-)
+# Asset file handling
+if(NOT EMSCRIPTEN)
+    # Native: copy assets/ next to executable
+    add_custom_command(TARGET mps_dawn POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:mps_dawn>/assets
+        COMMENT "Copying assets to output directory"
+    )
+else()
+    # WASM: package assets/ into Emscripten virtual filesystem
+    target_link_options(mps_dawn PRIVATE
+        "--preload-file" "${CMAKE_SOURCE_DIR}/assets@assets"
+    )
+endif()

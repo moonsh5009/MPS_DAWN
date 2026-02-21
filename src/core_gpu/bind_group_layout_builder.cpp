@@ -40,7 +40,7 @@ BindGroupLayoutBuilder&& BindGroupLayoutBuilder::AddSamplerBinding(
     return std::move(*this).AddBinding(binding, visibility, BindingType::FilteringSampler);
 }
 
-WGPUBindGroupLayout BindGroupLayoutBuilder::Build() && {
+GPUBindGroupLayout BindGroupLayoutBuilder::Build() && {
     auto& gpu = GPUCore::GetInstance();
 
     std::vector<WGPUBindGroupLayoutEntry> wgpu_entries;
@@ -82,7 +82,7 @@ WGPUBindGroupLayout BindGroupLayoutBuilder::Build() && {
     desc.entryCount = wgpu_entries.size();
     desc.entries = wgpu_entries.data();
 
-    return wgpuDeviceCreateBindGroupLayout(gpu.GetDevice(), &desc);
+    return GPUBindGroupLayout(wgpuDeviceCreateBindGroupLayout(gpu.GetDevice(), &desc));
 }
 
 }  // namespace gpu

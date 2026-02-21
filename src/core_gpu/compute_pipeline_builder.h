@@ -1,11 +1,11 @@
 #pragma once
 
 #include "core_gpu/gpu_types.h"
+#include "core_gpu/gpu_handle.h"
 #include <string>
 
 struct WGPUPipelineLayoutImpl;   typedef WGPUPipelineLayoutImpl*   WGPUPipelineLayout;
 struct WGPUShaderModuleImpl;     typedef WGPUShaderModuleImpl*     WGPUShaderModule;
-struct WGPUComputePipelineImpl;  typedef WGPUComputePipelineImpl*  WGPUComputePipeline;
 
 namespace mps {
 namespace gpu {
@@ -24,7 +24,7 @@ public:
     ComputePipelineBuilder&& SetComputeShader(WGPUShaderModule module,
                                                const std::string& entry = "cs_main") &&;
 
-    WGPUComputePipeline Build() &&;
+    GPUComputePipeline Build() &&;
 
 private:
     std::string label_;

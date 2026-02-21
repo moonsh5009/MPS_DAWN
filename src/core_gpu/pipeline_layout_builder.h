@@ -1,11 +1,11 @@
 #pragma once
 
 #include "core_gpu/gpu_types.h"
+#include "core_gpu/gpu_handle.h"
 #include <vector>
 #include <string>
 
 struct WGPUBindGroupLayoutImpl;  typedef WGPUBindGroupLayoutImpl* WGPUBindGroupLayout;
-struct WGPUPipelineLayoutImpl;   typedef WGPUPipelineLayoutImpl*  WGPUPipelineLayout;
 
 namespace mps {
 namespace gpu {
@@ -21,7 +21,7 @@ public:
     PipelineLayoutBuilder& operator=(PipelineLayoutBuilder&&) noexcept = default;
 
     PipelineLayoutBuilder&& AddBindGroupLayout(WGPUBindGroupLayout layout) &&;
-    WGPUPipelineLayout Build() &&;
+    GPUPipelineLayout Build() &&;
 
 private:
     std::vector<WGPUBindGroupLayout> layouts_;

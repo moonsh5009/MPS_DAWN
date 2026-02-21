@@ -48,7 +48,9 @@ Use the module name without `mps::` prefix:
 | `core_render` | rendering pipeline |
 | `core_simulate` | simulation, device DB |
 | `core_system` | system controller |
-| `ext_cloth` | cloth simulation extension |
+| `ext_newton` | Newton-Raphson dynamics extension |
+| `ext_mesh` | mesh rendering + normal computation |
+| `ext_dynamics` | dynamics terms (inertial, gravity, spring, area) |
 | `ext_sample` | sample extension (reference) |
 | *(omit)* | project-wide or non-module changes |
 
