@@ -6,7 +6,7 @@ model: opus
 
 # Simulate Agent
 
-Owns the `core_simulate` module. Manages GPU buffer mirroring (DeviceDB), conjugate gradient solver, and pluggable physics term interfaces. The Newton-Raphson solver and Newton term implementations live in `ext_newton`. The PD solver and PD term implementations live in `ext_pd`. Shared constraint types live in `ext_dynamics`. Normal computation lives in `ext_mesh`.
+Owns the `core_simulate` module. Manages GPU buffer mirroring (DeviceDB), conjugate gradient solver, and pluggable physics term interfaces. The Newton-Raphson solver and Newton term implementations live in `ext_newton`. PD term implementations live in `ext_pd_term`, the Chebyshev PD solver in `ext_chebyshev_pd`, and the ADMM PD solver in `ext_admm_pd`. Shared constraint types live in `ext_dynamics`. Normal computation lives in `ext_mesh`.
 
 > **CRITICAL**: ALWAYS read `.claude/docs/core_simulate.md` FIRST before any task. This doc contains the complete file tree, types, APIs, and shader references. DO NOT read source files (.h/.cpp) to understand the module — only read source files when you need to edit them.
 
@@ -31,7 +31,7 @@ Owns the `core_simulate` module. Manages GPU buffer mirroring (DeviceDB), conjug
 ### Dynamics Design Rules
 
 - **NewtonDynamics** lives in `ext_newton` (NOT in core_simulate) — it's a helper class that computes `dv_total`. The caller (`ext_newton::NewtonSystemSimulator`) applies velocity/position updates
-- **Newton term implementations** live in `ext_newton` (SpringTerm, AreaTerm). Inertia and gravity are built into NewtonDynamics internally. **PD term implementations** live in `ext_pd` (PDSpringTerm, PDAreaTerm). core_simulate only defines the interfaces
+- **Newton term implementations** live in `ext_newton` (SpringTerm, AreaTerm). Inertia and gravity are built into NewtonDynamics internally. **PD term implementations** live in `ext_pd_term` (PDSpringTerm, PDAreaTerm) with both Chebyshev and ADMM methods. core_simulate only defines the interfaces
 - **Term convention**: Terms pre-multiply `dt²` into A so the SpMV is physics-agnostic. Built-in inertia writes M directly to diagonal; SpringTerm writes `-dt²*H_ab` to offdiag, `+dt²*H_ab` to diagonal
 - **MPCG filter**: Zero residual/direction for pinned nodes (`inv_mass == 0`) in CG loop
 - **ISpMVOperator**: Implementors cache bind groups via `PrepareSolve()` and dispatch via `Apply()`. This avoids re-creating bind groups every CG iteration
@@ -64,13 +64,14 @@ Owns the `core_simulate` module. Manages GPU buffer mirroring (DeviceDB), conjug
 
 ### Adding a new PD constraint term
 
-1. Create `pd_new_term.h/cpp` in `extensions/ext_pd/`
+1. Create `pd_new_term.h/cpp` in `extensions/ext_pd_term/`
 2. Inherit `IProjectiveTerm`
 3. Implement `GetName()`, `Initialize(sparsity, ctx)` (cache bind groups from PDAssemblyContext), `AssembleLHS()`, `ProjectRHS()` (fused local projection + RHS), `Shutdown()`
-4. Override `DeclareSparsity()` if the term contributes off-diagonal entries
-5. Create corresponding WGSL shaders in `assets/shaders/ext_pd/` (lhs, local, rhs)
-6. Create an `IProjectiveTermProvider` to instantiate the term
-7. Register the provider via `system.RegisterPDTermProvider()` in your extension's `Register()`
+4. For ADMM support: implement `InitializeADMM(ctx)`, `ProjectLocal()`, `AssembleADMMRHS()`, `UpdateDual()`, `ResetDual()`
+5. Override `DeclareSparsity()` if the term contributes off-diagonal entries
+6. Create corresponding WGSL shaders in `assets/shaders/ext_pd_term/` (Chebyshev: lhs, project_rhs; ADMM: project, rhs, dual, reset)
+7. Create an `IProjectiveTermProvider` to instantiate the term
+8. Register the provider via `system.RegisterPDTermProvider()` in ext_pd_term's `Register()`
 
 ### Adding a new ISimulator
 

@@ -1,5 +1,5 @@
-#include "ext_pd/pd_spring_term_provider.h"
-#include "ext_pd/pd_spring_term.h"
+#include "ext_pd_term/pd_spring_term_provider.h"
+#include "ext_pd_term/pd_spring_term.h"
 #include "ext_dynamics/spring_constraint.h"
 #include "ext_dynamics/spring_types.h"
 #include "core_simulate/sim_components.h"
@@ -13,7 +13,7 @@ using namespace mps::util;
 using namespace mps::database;
 using namespace mps::simulate;
 
-namespace ext_pd {
+namespace ext_pd_term {
 
 PDSpringTermProvider::PDSpringTermProvider(system::System& system)
     : system_(system) {}
@@ -35,7 +35,6 @@ std::unique_ptr<IProjectiveTerm> PDSpringTermProvider::CreateTerm(
         return nullptr;
     }
 
-    // Gather edges: if constraint entity itself has SpringEdge data, scope to it only
     auto* storage = db.GetArrayStorageById(GetComponentTypeId<ext_dynamics::SpringEdge>());
     if (!storage) return nullptr;
 
@@ -43,12 +42,10 @@ std::unique_ptr<IProjectiveTerm> PDSpringTermProvider::CreateTerm(
     bool scoped = storage->GetArrayCount(entity) > 0;
 
     if (scoped) {
-        // Scoped: use only this entity's edges with local 0-based indices (no offset)
         uint32 count = storage->GetArrayCount(entity);
         const auto* data = static_cast<const ext_dynamics::SpringEdge*>(storage->GetArrayData(entity));
         all_edges.assign(data, data + count);
     } else {
-        // Global: merge ALL entities' edges with position offsets
         auto entities = storage->GetEntities();
         std::sort(entities.begin(), entities.end());
 
@@ -116,4 +113,4 @@ void PDSpringTermProvider::QueryTopology(const Database& db, Entity entity,
     out_face_count = 0;
 }
 
-}  // namespace ext_pd
+}  // namespace ext_pd_term

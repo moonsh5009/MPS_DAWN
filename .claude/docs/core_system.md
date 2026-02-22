@@ -150,17 +150,17 @@ ext_newton::Register()              System (registry)              NewtonSystemS
 
 ### PD Term Registry
 
-Extensions register `IProjectiveTermProvider` via `RegisterPDTermProvider()`. `PDSystemSimulator` discovers terms via `FindPDTermProvider()`.
+`ext_pd_term` registers `IProjectiveTermProvider` via `RegisterPDTermProvider()`. Both `ChebyshevPDSystemSimulator` and `ADMMSystemSimulator` discover terms via `FindAllPDTermProviders()`.
 
 ```
-ext_pd::Register()                  System (registry)              PDSystemSimulator
-  │                                   │                               │
+ext_pd_term::Register()               System (registry)           Chebyshev / ADMM Simulator
+  │                                      │                               │
   ├─ RegisterPDTermProvider ────►  SpringConstraintData          Initialize():
-  │   (→ PDSpringTermProvider)     │                            1. Read config.constraint_refs
-  ├─ RegisterPDTermProvider ────►  AreaConstraintData            2. For each ref entity:
-  │   (→ PDAreaTermProvider)       │                            3.   FindAllPDTermProviders(entity)
-  └─                               ▼                            4.   provider->CreateTerm()
-                                                                 5.   dynamics->AddTerm(term)
+  │   (→ PDSpringTermProvider)        │                            1. Read config.constraint_refs
+  ├─ RegisterPDTermProvider ────►  AreaConstraintData              2. For each ref entity:
+  │   (→ PDAreaTermProvider)          │                            3.   FindAllPDTermProviders(entity)
+  └─                                  ▼                            4.   provider->CreateTerm()
+                                                                   5.   dynamics->AddTerm(term)
 ```
 
 ## Data Flow

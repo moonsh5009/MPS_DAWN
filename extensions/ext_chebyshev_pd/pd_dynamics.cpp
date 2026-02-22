@@ -1,4 +1,4 @@
-#include "ext_pd/pd_dynamics.h"
+#include "ext_chebyshev_pd/pd_dynamics.h"
 #include "core_simulate/sim_components.h"
 #include "core_gpu/gpu_core.h"
 #include "core_gpu/shader_loader.h"
@@ -16,7 +16,7 @@ using namespace mps::util;
 using namespace mps::gpu;
 using namespace mps::simulate;
 
-namespace ext_pd {
+namespace ext_chebyshev_pd {
 
 // ============================================================================
 // Static helpers
@@ -51,7 +51,7 @@ static void Dispatch(WGPUCommandEncoder encoder,
 
 static GPUComputePipeline MakePipeline(const std::string& shader_path,
                                         const std::string& label) {
-    auto shader = ShaderLoader::CreateModule("ext_pd/" + shader_path, label);
+    auto shader = ShaderLoader::CreateModule(shader_path, label);
     WGPUComputePipelineDescriptor desc = WGPU_COMPUTE_PIPELINE_DESCRIPTOR_INIT;
     desc.label = {label.data(), label.size()};
     desc.layout = nullptr;
@@ -125,7 +125,7 @@ void PDDynamics::Initialize(uint32 node_count, uint32 edge_count, uint32 face_co
         wgpuCommandEncoderRelease(encoder);
     }
 
-    // Build Chebyshev params: manual ρ immediately, auto ρ deferred to CalibrateRho()
+    // Build Chebyshev params: manual rho immediately, auto rho deferred to CalibrateRho()
     if (chebyshev_rho_ > 0.0f) {
         BuildChebyshevParams(chebyshev_rho_);
         rho_calibrated_ = true;
@@ -171,7 +171,7 @@ void PDDynamics::CreateBuffers(WGPUBuffer position_buffer, WGPUBuffer velocity_b
         BufferConfig{.usage = BufferUsage::Uniform | BufferUsage::CopyDst,
                      .size = sizeof(JacobiParams), .label = "pd_jacobi_params"});
 
-    // Chebyshev staging buffer (filled after LHS build when ρ is known)
+    // Chebyshev staging buffer (filled after LHS build when rho is known)
     jacobi_staging_buffer_ = std::make_unique<GPUBuffer<JacobiParams>>(
         BufferConfig{.usage = BufferUsage::Storage | BufferUsage::CopySrc | BufferUsage::CopyDst,
                      .size = uint64(iterations_) * sizeof(JacobiParams),
@@ -214,13 +214,13 @@ void PDDynamics::CreateBuffers(WGPUBuffer position_buffer, WGPUBuffer velocity_b
 }
 
 void PDDynamics::CreatePipelines() {
-    pd_init_pipeline_ = MakePipeline("pd_init.wgsl", "pd_init");
-    pd_predict_pipeline_ = MakePipeline("pd_predict.wgsl", "pd_predict");
-    pd_copy_pipeline_ = MakePipeline("pd_copy_vec4.wgsl", "pd_copy");
-    pd_mass_rhs_pipeline_ = MakePipeline("pd_mass_rhs.wgsl", "pd_mass_rhs");
-    pd_inertial_lhs_pipeline_ = MakePipeline("pd_inertial_lhs.wgsl", "pd_inertial_lhs");
-    pd_compute_d_inv_pipeline_ = MakePipeline("pd_compute_d_inv.wgsl", "pd_compute_d_inv");
-    pd_jacobi_step_pipeline_ = MakePipeline("pd_jacobi_step.wgsl", "pd_jacobi_step");
+    pd_init_pipeline_ = MakePipeline("ext_pd_common/pd_init.wgsl", "pd_init");
+    pd_predict_pipeline_ = MakePipeline("ext_pd_common/pd_predict.wgsl", "pd_predict");
+    pd_copy_pipeline_ = MakePipeline("ext_pd_common/pd_copy_vec4.wgsl", "pd_copy");
+    pd_mass_rhs_pipeline_ = MakePipeline("ext_pd_common/pd_mass_rhs.wgsl", "pd_mass_rhs");
+    pd_inertial_lhs_pipeline_ = MakePipeline("ext_pd_common/pd_inertial_lhs.wgsl", "pd_inertial_lhs");
+    pd_compute_d_inv_pipeline_ = MakePipeline("ext_pd_common/pd_compute_d_inv.wgsl", "pd_compute_d_inv");
+    pd_jacobi_step_pipeline_ = MakePipeline("ext_chebyshev_pd/pd_jacobi_step.wgsl", "pd_jacobi_step");
 }
 
 void PDDynamics::CacheBindGroups(WGPUBuffer position_buffer,
@@ -253,7 +253,7 @@ void PDDynamics::CacheBindGroups(WGPUBuffer position_buffer,
          {1, {position_buffer, vec_sz}},
          {2, {x_old_h, vec_sz}}});
 
-    // pd_predict: s = x_old + dt*v + dt²*g
+    // pd_predict: s = x_old + dt*v + dt^2*g
     bg_predict_ = MakeBG(pd_predict_pipeline_, "bg_pd_predict",
         {{0, {phys_h, phys_sz}}, {1, {params_h, params_sz}},
          {2, {x_old_h, vec_sz}},
@@ -266,13 +266,13 @@ void PDDynamics::CacheBindGroups(WGPUBuffer position_buffer,
          {1, {s_h, vec_sz}},
          {2, {q_curr_h, vec_sz}}});
 
-    // pd_mass_rhs: rhs += (M/dt²) * s
+    // pd_mass_rhs: rhs += (M/dt^2) * s
     bg_mass_rhs_ = MakeBG(pd_mass_rhs_pipeline_, "bg_pd_mass_rhs",
         {{0, {phys_h, phys_sz}}, {1, {params_h, params_sz}},
          {2, {mass_buffer, mass_sz}},
          {3, {s_h, vec_sz}}, {4, {rhs_h, rhs_sz}}});
 
-    // pd_inertial_lhs: diag += (M/dt²) * I₃
+    // pd_inertial_lhs: diag += (M/dt^2) * I3
     bg_inertial_lhs_ = MakeBG(pd_inertial_lhs_pipeline_, "bg_pd_inertial_lhs",
         {{0, {phys_h, phys_sz}}, {1, {params_h, params_sz}},
          {2, {mass_buffer, mass_sz}},
@@ -285,7 +285,6 @@ void PDDynamics::CacheBindGroups(WGPUBuffer position_buffer,
          {2, {d_inv_h, diag_sz}}});
 
     // pd_jacobi_step: fused SpMV + Jacobi + Chebyshev
-    // rhs_buffer_ stores float bits as u32 via atomicAddFloat; binding as vec4f reinterprets correctly
     bg_jacobi_step_ = MakeBG(pd_jacobi_step_pipeline_, "bg_pd_jacobi_step",
         {{0, {params_h, params_sz}},
          {1, {q_curr_h, vec_sz}},
@@ -310,7 +309,7 @@ void PDDynamics::RebuildLHS(WGPUCommandEncoder encoder) {
         wgpuCommandEncoderClearBuffer(encoder, csr_values_buffer_->GetHandle(), 0, csr_val_sz);
     }
 
-    // Inertial LHS: diag += M/dt² * I₃
+    // Inertial LHS: diag += M/dt^2 * I3
     Dispatch(encoder, pd_inertial_lhs_pipeline_, bg_inertial_lhs_, node_wg_count_);
 
     // Term LHS contributions
@@ -318,7 +317,7 @@ void PDDynamics::RebuildLHS(WGPUCommandEncoder encoder) {
         term->AssembleLHS(encoder);
     }
 
-    // Compute D⁻¹
+    // Compute D^-1
     Dispatch(encoder, pd_compute_d_inv_pipeline_, bg_compute_d_inv_, node_wg_count_);
 }
 
@@ -326,7 +325,7 @@ void PDDynamics::Solve(WGPUCommandEncoder encoder) {
     // Init: x_old = positions
     Dispatch(encoder, pd_init_pipeline_, bg_init_, node_wg_count_);
 
-    // Predict: s = x_old + dt*v + dt²*g
+    // Predict: s = x_old + dt*v + dt^2*g
     Dispatch(encoder, pd_predict_pipeline_, bg_predict_, node_wg_count_);
 
     // Initial guess: q_curr = s
@@ -346,7 +345,7 @@ void PDDynamics::Solve(WGPUCommandEncoder encoder) {
         // Clear RHS
         wgpuCommandEncoderClearBuffer(encoder, rhs_buffer_->GetHandle(), 0, rhs_sz);
 
-        // Inertial RHS: rhs += (M/dt²) * s
+        // Inertial RHS: rhs += (M/dt^2) * s
         Dispatch(encoder, pd_mass_rhs_pipeline_, bg_mass_rhs_, node_wg_count_);
 
         // Fused local projection + RHS assembly per term
@@ -354,15 +353,15 @@ void PDDynamics::Solve(WGPUCommandEncoder encoder) {
             term->ProjectRHS(encoder);
         }
 
-        // Copy pre-computed Jacobi params for this iteration (staging → uniform)
+        // Copy pre-computed Jacobi params for this iteration (staging -> uniform)
         wgpuCommandEncoderCopyBufferToBuffer(encoder,
             jacobi_staging_buffer_->GetHandle(), uint64(k) * sizeof(JacobiParams),
             jacobi_params_buffer_->GetHandle(), 0, sizeof(JacobiParams));
 
-        // Fused SpMV + Jacobi + Chebyshev: q_new = ω*(D⁻¹*(b-(A-D)*q_curr) - q_prev) + q_prev
+        // Fused SpMV + Jacobi + Chebyshev: q_new = omega*(D^-1*(b-(A-D)*q_curr) - q_prev) + q_prev
         Dispatch(encoder, pd_jacobi_step_pipeline_, bg_jacobi_step_, node_wg_count_);
 
-        // 3-buffer rotation: prev ← curr, curr ← new
+        // 3-buffer rotation: prev <- curr, curr <- new
         wgpuCommandEncoderCopyBufferToBuffer(encoder,
             q_curr_buffer_->GetHandle(), 0,
             q_prev_buffer_->GetHandle(), 0, vec_sz);
@@ -393,7 +392,7 @@ uint64 PDDynamics::GetVec4BufferSize() const {
 }
 
 // ---------------------------------------------------------------------------
-// Debug readback — reads GPU buffers to CPU and logs values for sample nodes.
+// Debug readback
 // ---------------------------------------------------------------------------
 static std::vector<float32> ReadbackBuffer(WGPUBuffer src, uint64 size) {
     auto& gpu = GPUCore::GetInstance();
@@ -481,13 +480,11 @@ void PDDynamics::DebugDump() {
                 ") off=(", d_inv[d+1], ", ", d_inv[d+2], ", ", d_inv[d+3], ")");
 
         // Compute expected values for sanity check
-        // Diff: q - x_old (displacement due to solve)
         float32 dx = q[v] - x_old[v];
         float32 dy = q[v+1] - x_old[v+1];
         float32 dz = q[v+2] - x_old[v+2];
         LogInfo("[PD] q-x_old  = (", dx, ", ", dy, ", ", dz, ")");
 
-        // Diff: q - s (correction from constraints)
         float32 cx = q[v] - s[v];
         float32 cy = q[v+1] - s[v+1];
         float32 cz = q[v+2] - s[v+2];
@@ -542,13 +539,13 @@ bool PDDynamics::CalibrateRho() {
     // Save initial q_0 for delta measurement
     auto q_prev_data = ReadbackBuffer(q_curr_buffer_->GetHandle(), vec_sz);
 
-    // Write pure-Jacobi params (ω=1, is_first=1)
+    // Write pure-Jacobi params (omega=1, is_first=1)
     JacobiParams pure_jacobi = {1.0f, 1, 0.0f, 0.0f};
 
     std::vector<float32> delta_norms;
 
     for (uint32 k = 0; k < cal_iters; ++k) {
-        // One PD iteration with ω=1
+        // One PD iteration with omega=1
         {
             WGPUCommandEncoderDescriptor ed = WGPU_COMMAND_ENCODER_DESCRIPTOR_INIT;
             WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(gpu.GetDevice(), &ed);
@@ -560,7 +557,7 @@ bool PDDynamics::CalibrateRho() {
                 term->ProjectRHS(enc);
             }
 
-            // Set Jacobi params to ω=1
+            // Set Jacobi params to omega=1
             jacobi_staging_buffer_->WriteData(std::span<const JacobiParams>(&pure_jacobi, 1));
             wgpuCommandEncoderCopyBufferToBuffer(enc,
                 jacobi_staging_buffer_->GetHandle(), 0,
@@ -568,7 +565,7 @@ bool PDDynamics::CalibrateRho() {
 
             Dispatch(enc, pd_jacobi_step_pipeline_, bg_jacobi_step_, node_wg_count_);
 
-            // Rotate: prev ← curr, curr ← new
+            // Rotate: prev <- curr, curr <- new
             wgpuCommandEncoderCopyBufferToBuffer(enc,
                 q_curr_buffer_->GetHandle(), 0,
                 q_prev_buffer_->GetHandle(), 0, vec_sz);
@@ -615,7 +612,6 @@ bool PDDynamics::CalibrateRho() {
         rho_est = ratios[idx];
 
         // Safety margin: slightly overestimate (never underestimate!)
-        // Underestimating ρ causes Chebyshev to amplify modes above ρ_est.
         rho_est = rho_est * 1.05f;
         rho_est = std::clamp(rho_est, 0.5f, 0.9999f);
     }
@@ -705,4 +701,4 @@ void PDDynamics::Shutdown() {
     LogInfo("PDDynamics: shutdown");
 }
 
-}  // namespace ext_pd
+}  // namespace ext_chebyshev_pd

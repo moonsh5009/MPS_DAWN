@@ -1,6 +1,6 @@
 # ext_dynamics
 
-> Shared constraint types, config components, and constraint builder — used by both Newton (ext_newton) and PD (ext_pd) solvers.
+> Shared constraint types, config components, and constraint builder — used by Newton (ext_newton) and PD solvers (ext_pd_term, ext_chebyshev_pd, ext_admm_pd).
 
 ## Module Structure
 
@@ -104,4 +104,4 @@ Mesh Entity (also serves as constraint entity):
 
 ## Shaders
 
-None — ext_dynamics contains only host-side data types and constraint builder. Physics shaders live in `assets/shaders/ext_newton/` and `assets/shaders/ext_pd/`.
+None — ext_dynamics contains only host-side data types and constraint builder. Physics shaders live in `assets/shaders/ext_newton/`, `assets/shaders/ext_pd_common/`, `assets/shaders/ext_pd_term/`, `assets/shaders/ext_chebyshev_pd/`, and `assets/shaders/ext_admm_pd/`.

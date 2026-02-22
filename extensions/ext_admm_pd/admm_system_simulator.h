@@ -9,17 +9,14 @@ struct WGPUBufferImpl;  typedef WGPUBufferImpl* WGPUBuffer;
 
 namespace mps { namespace system { class System; } }
 
-namespace ext_pd {
+namespace ext_admm_pd {
 
-class PDDynamics;
+class ADMMDynamics;
 
-// Projective Dynamics simulator with Chebyshev-accelerated Jacobi.
-// Discovers PD constraint terms from entity references in PDSystemConfig,
-// then runs the PD solver and integrates velocity/position.
-class PDSystemSimulator : public mps::simulate::ISimulator {
+class ADMMSystemSimulator : public mps::simulate::ISimulator {
 public:
-    explicit PDSystemSimulator(mps::system::System& system);
-    ~PDSystemSimulator() override;
+    explicit ADMMSystemSimulator(mps::system::System& system);
+    ~ADMMSystemSimulator() override;
 
     [[nodiscard]] const std::string& GetName() const override;
     void Initialize() override;
@@ -29,26 +26,17 @@ public:
 
 private:
     mps::system::System& system_;
+    std::unique_ptr<ADMMDynamics> dynamics_;
 
-    // PD solver
-    std::unique_ptr<PDDynamics> dynamics_;
-
-    // Velocity/position update pipelines
     mps::gpu::GPUComputePipeline update_velocity_pipeline_;
     mps::gpu::GPUComputePipeline update_position_pipeline_;
 
-    // Cached bind groups
     mps::gpu::GPUBindGroup bg_vel_;
     mps::gpu::GPUBindGroup bg_pos_;
 
-    // Cached counts
     mps::uint32 node_count_ = 0;
-
     bool initialized_ = false;
-    bool rho_calibrated_ = false;
-    mps::uint32 debug_frame_ = 0;
 
-    // Scoped mode (mesh_entity != 0): local buffer copy
     WGPUBuffer local_pos_ = nullptr;
     WGPUBuffer local_vel_ = nullptr;
     WGPUBuffer local_mass_ = nullptr;
@@ -71,4 +59,4 @@ private:
     static constexpr mps::uint32 kWorkgroupSize = 64;
 };
 
-}  // namespace ext_pd
+}  // namespace ext_admm_pd

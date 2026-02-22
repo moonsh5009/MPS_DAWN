@@ -5,11 +5,11 @@
 
 namespace mps { namespace system { class System; } }
 
-namespace ext_pd {
+namespace ext_pd_term {
 
-class PDExtension : public mps::system::IExtension {
+class PDTermExtension : public mps::system::IExtension {
 public:
-    explicit PDExtension(mps::system::System& system);
+    explicit PDTermExtension(mps::system::System& system);
 
     [[nodiscard]] const std::string& GetName() const override;
     void Register(mps::system::System& system) override;
@@ -19,4 +19,4 @@ private:
     static const std::string kName;
 };
 
-}  // namespace ext_pd
+}  // namespace ext_pd_term

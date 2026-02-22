@@ -5,11 +5,11 @@
 
 namespace mps { namespace system { class System; } }
 
-namespace ext_pd {
+namespace ext_pd_term {
 
-class PDSpringTermProvider : public mps::simulate::IProjectiveTermProvider {
+class PDAreaTermProvider : public mps::simulate::IProjectiveTermProvider {
 public:
-    explicit PDSpringTermProvider(mps::system::System& system);
+    explicit PDAreaTermProvider(mps::system::System& system);
 
     [[nodiscard]] std::string_view GetTermName() const override;
     [[nodiscard]] bool HasConfig(const mps::database::Database& db,
@@ -24,7 +24,7 @@ public:
 
 private:
     mps::system::System& system_;
-    mps::uint32 edge_count_ = 0;
+    mps::uint32 face_count_ = 0;
 };
 
-}  // namespace ext_pd
+}  // namespace ext_pd_term

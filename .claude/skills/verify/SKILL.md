@@ -72,9 +72,9 @@ cmd.exe //c "schtasks /Delete /TN mps_verify /F" > /dev/null 2>&1
 
 **Check log output for:**
 - [ ] `GPU initialized:` — D3D12 backend active
-- [ ] All extensions registered (ext_dynamics, ext_mesh, ext_newton, ext_pd)
+- [ ] All extensions registered (ext_dynamics, ext_mesh, ext_newton, ext_pd_term, ext_chebyshev_pd, ext_admm_pd)
 - [ ] All term providers registered (SpringTermProvider, AreaTermProvider, PDSpringTermProvider, PDAreaTermProvider)
-- [ ] All simulators initialized (NewtonSystemSimulator, PDSystemSimulator, MeshPostProcessor)
+- [ ] All simulators initialized (NewtonSystemSimulator, ChebyshevPDSystemSimulator, ADMMSystemSimulator, MeshPostProcessor)
 - [ ] All renderers initialized (MeshRenderer)
 - [ ] `Entering main loop...` — no crash before frame loop
 - [ ] No `[ERROR]` lines in output
@@ -90,8 +90,8 @@ From a 64x64 cloth grid, expected values:
 | Faces | 7938 |
 | NNZ (CSR off-diagonal) | ~32000 |
 | Newton terms | 2 (Spring + Area) — Inertial + Gravity are built into NewtonDynamics |
-| PD terms | 2 (PDSpringTerm + PDAreaTerm) |
-| Simulators | 3 (NewtonSystemSimulator + PDSystemSimulator + MeshPostProcessor) |
+| PD terms | 2 (PDSpringTerm + PDAreaTerm) per solver |
+| Simulators | 4 (NewtonSystemSimulator + ChebyshevPDSystemSimulator + ADMMSystemSimulator + MeshPostProcessor) |
 | Renderers | 1 (MeshRenderer) |
 
 ## Common Issues

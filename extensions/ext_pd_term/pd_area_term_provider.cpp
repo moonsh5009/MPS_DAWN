@@ -1,5 +1,5 @@
-#include "ext_pd/pd_area_term_provider.h"
-#include "ext_pd/pd_area_term.h"
+#include "ext_pd_term/pd_area_term_provider.h"
+#include "ext_pd_term/pd_area_term.h"
 #include "ext_dynamics/area_constraint.h"
 #include "ext_dynamics/area_types.h"
 #include "core_simulate/sim_components.h"
@@ -13,7 +13,7 @@ using namespace mps::util;
 using namespace mps::database;
 using namespace mps::simulate;
 
-namespace ext_pd {
+namespace ext_pd_term {
 
 PDAreaTermProvider::PDAreaTermProvider(system::System& system)
     : system_(system) {}
@@ -35,7 +35,6 @@ std::unique_ptr<IProjectiveTerm> PDAreaTermProvider::CreateTerm(
         return nullptr;
     }
 
-    // Gather triangles: if constraint entity itself has AreaTriangle data, scope to it only
     auto* storage = db.GetArrayStorageById(GetComponentTypeId<ext_dynamics::AreaTriangle>());
     if (!storage) return nullptr;
 
@@ -43,12 +42,10 @@ std::unique_ptr<IProjectiveTerm> PDAreaTermProvider::CreateTerm(
     bool scoped = storage->GetArrayCount(entity) > 0;
 
     if (scoped) {
-        // Scoped: use only this entity's triangles with local 0-based indices (no offset)
         uint32 count = storage->GetArrayCount(entity);
         const auto* data = static_cast<const ext_dynamics::AreaTriangle*>(storage->GetArrayData(entity));
         all_triangles.assign(data, data + count);
     } else {
-        // Global: merge ALL entities' triangles with position offsets
         auto entities = storage->GetEntities();
         std::sort(entities.begin(), entities.end());
 
@@ -117,4 +114,4 @@ void PDAreaTermProvider::QueryTopology(const Database& db, Entity entity,
     }
 }
 
-}  // namespace ext_pd
+}  // namespace ext_pd_term

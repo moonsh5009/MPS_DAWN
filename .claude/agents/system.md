@@ -33,7 +33,7 @@ Owns the `core_system` module. Manages the System controller that orchestrates d
 Two separate registries for Newton and PD solvers:
 
 - **Newton**: `RegisterTermProvider(config_type, IDynamicsTermProvider)` / `FindTermProvider(entity)` — used by `ext_newton::NewtonSystemSimulator`
-- **PD**: `RegisterPDTermProvider(config_type, IProjectiveTermProvider)` / `FindPDTermProvider(entity)` — used by `ext_pd::PDSystemSimulator`
+- **PD**: `RegisterPDTermProvider(config_type, IProjectiveTermProvider)` / `FindPDTermProvider(entity)` — used by `ext_chebyshev_pd::ChebyshevPDSystemSimulator` and `ext_admm_pd::ADMMSystemSimulator`
 
 Both iterate providers and match via `HasConfig()` on constraint entities.
 

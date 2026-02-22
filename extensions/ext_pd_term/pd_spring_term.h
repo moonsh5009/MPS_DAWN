@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace ext_pd {
+namespace ext_pd_term {
 
 class PDSpringTerm : public mps::simulate::IProjectiveTerm {
 public:
@@ -21,6 +21,14 @@ public:
                     const mps::simulate::PDAssemblyContext& ctx) override;
     void AssembleLHS(WGPUCommandEncoder encoder) override;
     void ProjectRHS(WGPUCommandEncoder encoder) override;
+
+    // ADMM methods
+    void InitializeADMM(const mps::simulate::PDAssemblyContext& ctx) override;
+    void ProjectLocal(WGPUCommandEncoder encoder) override;
+    void AssembleADMMRHS(WGPUCommandEncoder encoder) override;
+    void UpdateDual(WGPUCommandEncoder encoder) override;
+    void ResetDual(WGPUCommandEncoder encoder) override;
+
     void Shutdown() override;
 
 private:
@@ -34,16 +42,33 @@ private:
     std::unique_ptr<mps::gpu::GPUBuffer<ext_dynamics::EdgeCSRMapping>> edge_csr_buffer_;
     std::unique_ptr<mps::gpu::GPUBuffer<ext_newton::SpringParams>> spring_params_buffer_;
 
-    // Pipelines
+    // Chebyshev pipelines
     mps::gpu::GPUComputePipeline lhs_pipeline_;
     mps::gpu::GPUComputePipeline project_rhs_pipeline_;
 
-    // Cached bind groups
+    // Chebyshev bind groups
     mps::gpu::GPUBindGroup bg_lhs_;
     mps::gpu::GPUBindGroup bg_project_rhs_;
+
+    // ADMM buffers (z, u per edge)
+    std::unique_ptr<mps::gpu::GPUBuffer<mps::float32>> z_buffer_;
+    std::unique_ptr<mps::gpu::GPUBuffer<mps::float32>> u_buffer_;
+
+    // ADMM pipelines
+    mps::gpu::GPUComputePipeline admm_project_pipeline_;
+    mps::gpu::GPUComputePipeline admm_rhs_pipeline_;
+    mps::gpu::GPUComputePipeline admm_dual_pipeline_;
+    mps::gpu::GPUComputePipeline admm_reset_pipeline_;
+
+    // ADMM bind groups
+    mps::gpu::GPUBindGroup bg_admm_project_;
+    mps::gpu::GPUBindGroup bg_admm_rhs_;
+    mps::gpu::GPUBindGroup bg_admm_dual_;
+    mps::gpu::GPUBindGroup bg_admm_reset_;
+
     mps::uint32 wg_count_ = 0;
 
     static const std::string kName;
 };
 
-}  // namespace ext_pd
+}  // namespace ext_pd_term

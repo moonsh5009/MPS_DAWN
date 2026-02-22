@@ -50,6 +50,13 @@ public:
     // Computes p from current q and immediately scatters w * S^T * p to RHS.
     virtual void ProjectRHS(WGPUCommandEncoder encoder) = 0;
 
+    // ADMM methods (default no-op — only implemented by ADMM-aware terms)
+    virtual void InitializeADMM(const PDAssemblyContext& ctx) {}
+    virtual void ProjectLocal(WGPUCommandEncoder encoder) {}      // z = project(S*q + u)
+    virtual void AssembleADMMRHS(WGPUCommandEncoder encoder) {}   // rhs += w*S^T*(z-u)
+    virtual void UpdateDual(WGPUCommandEncoder encoder) {}        // u += S*q - z
+    virtual void ResetDual(WGPUCommandEncoder encoder) {}         // z=S*s, u=0
+
     virtual void Shutdown() = 0;
 };
 

@@ -43,7 +43,7 @@ src/core_simulate/
 | `IDynamicsTerm` | `dynamics_term.h` | Newton physics contribution: `DeclareSparsity()`, `Initialize(sparsity, ctx)`, `Assemble(encoder)` |
 | `AssemblyContext` | `dynamics_term.h` | GPU buffer handles passed to Newton terms during Initialize for bind group caching |
 | `SparsityBuilder` | `dynamics_term.h` | Builds CSR sparsity pattern from declared edges |
-| `IProjectiveTerm` | `projective_term.h` | PD constraint term: `AssembleLHS()`, `ProjectRHS()` (fused local projection + RHS) |
+| `IProjectiveTerm` | `projective_term.h` | PD constraint term: `AssembleLHS()`, `ProjectRHS()` + ADMM methods (`InitializeADMM`, `ProjectLocal`, `AssembleADMMRHS`, `UpdateDual`, `ResetDual`) |
 | `PDAssemblyContext` | `projective_term.h` | GPU buffer handles passed to PD terms during Initialize for bind group caching |
 | `IProjectiveTermProvider` | `projective_term_provider.h` | PD term factory: `HasConfig()`, `CreateTerm()`, `DeclareTopology()`, `QueryTopology()` |
 | `SolverParams` | `solver_params.h` | Per-solver GPU uniform: `alignas(16) {node_count, edge_count, face_count, cg_max_iter, cg_tolerance}` — 32 bytes |
@@ -172,6 +172,14 @@ virtual void DeclareSparsity(SparsityBuilder& builder) {}
 virtual void Initialize(const SparsityBuilder& sparsity, const PDAssemblyContext& ctx) = 0;
 virtual void AssembleLHS(WGPUCommandEncoder encoder) = 0;   // constant LHS (w * S^T * S)
 virtual void ProjectRHS(WGPUCommandEncoder encoder) = 0;    // fused local projection + RHS (w * S^T * p)
+
+// ADMM methods (default no-op — only implemented by ADMM-aware terms)
+virtual void InitializeADMM(const PDAssemblyContext& ctx) {}
+virtual void ProjectLocal(WGPUCommandEncoder encoder) {}      // z = project(S*q + u)
+virtual void AssembleADMMRHS(WGPUCommandEncoder encoder) {}   // rhs += w*S^T*(z-u)
+virtual void UpdateDual(WGPUCommandEncoder encoder) {}        // u += S*q - z
+virtual void ResetDual(WGPUCommandEncoder encoder) {}         // z=S*s, u=0
+
 virtual void Shutdown() = 0;
 ```
 
@@ -284,18 +292,26 @@ NewtonDynamics (ext_newton, instantiated by NewtonSystemSimulator)
     └── AreaTerm     (ext_newton) — force += f_area, A_diag += dt²*H_diag
 ```
 
-### PD Solver (ext_pd)
+### PD Solvers (ext_pd_term + ext_chebyshev_pd + ext_admm_pd)
 
 ```
-IProjectiveTermProvider[] (registered with System)
-├── PDSpringTermProvider   (ext_pd) → creates PDSpringTerm
-└── PDAreaTermProvider     (ext_pd) → creates PDAreaTerm
+IProjectiveTermProvider[] (registered by ext_pd_term)
+├── PDSpringTermProvider   (ext_pd_term) → creates PDSpringTerm
+└── PDAreaTermProvider     (ext_pd_term) → creates PDAreaTerm
 
-PDDynamics (ext_pd, instantiated by PDSystemSimulator)
+Chebyshev solver — PDDynamics (ext_chebyshev_pd, instantiated by ChebyshevPDSystemSimulator)
 ├── SparsityBuilder (CSR pattern from edge declarations)
+├── Chebyshev-accelerated Jacobi iteration (Wang 2015)
 └── IProjectiveTerm[] (pluggable constraints, discovered from entity refs)
-    ├── PDSpringTerm (ext_pd) — spring distance constraint
-    └── PDAreaTerm   (ext_pd) — ARAP area constraint
+    ├── PDSpringTerm (ext_pd_term) — AssembleLHS + ProjectRHS
+    └── PDAreaTerm   (ext_pd_term) — AssembleLHS + ProjectRHS
+
+ADMM solver — ADMMDynamics (ext_admm_pd, instantiated by ADMMSystemSimulator)
+├── SparsityBuilder (CSR pattern from edge declarations)
+├── CGSolver + ISpMVOperator (inner solve for constant system matrix)
+└── IProjectiveTerm[] (ADMM methods: ProjectLocal + AssembleADMMRHS + UpdateDual + ResetDual)
+    ├── PDSpringTerm (ext_pd_term) — z/u per edge
+    └── PDAreaTerm   (ext_pd_term) — z/u per face (2×vec4f for 3x2 rotation)
 ```
 
 ## Shaders (`assets/shaders/core_simulate/`)
@@ -311,4 +327,4 @@ PDDynamics (ext_pd, instantiated by PDSystemSimulator)
 
 Header includes (`assets/shaders/core_simulate/header/`): `physics_params.wgsl` (PhysicsParams struct: dt, gravity, damping, derived values), `solver_params.wgsl` (SolverParams struct: topology counts + CG config), `atomic_float.wgsl` (CAS-based float atomics), `sim_mass.wgsl` (SimMass struct: `{mass, inv_mass}`).
 
-Newton solver + dynamics term shaders are in `assets/shaders/ext_newton/`. PD solver + projective term shaders are in `assets/shaders/ext_pd/`. Normal computation shaders are in `assets/shaders/ext_mesh/`.
+Newton solver + dynamics term shaders are in `assets/shaders/ext_newton/`. Shared PD infrastructure shaders are in `assets/shaders/ext_pd_common/`. PD term shaders (Chebyshev + ADMM) are in `assets/shaders/ext_pd_term/`. Chebyshev-specific shaders are in `assets/shaders/ext_chebyshev_pd/`. ADMM-specific shaders are in `assets/shaders/ext_admm_pd/`. Normal computation shaders are in `assets/shaders/ext_mesh/`.
