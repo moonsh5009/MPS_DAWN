@@ -26,13 +26,16 @@ Owns the `core_system` module. Manages the System controller that orchestrates d
 2. Inside `Register()`, extensions call `RegisterComponent<T>()`, `AddSimulator()`, `AddRenderer()`, `RegisterTermProvider()`
 3. After all extensions are added, `main.cpp` calls `system.Transact()` to create initial scene entities
 4. `system.Run()` calls private `InitializeExtensions()` which initializes simulators first, then renderers (sorted by order)
-5. Main loop: `UpdateSimulators(dt)` calls `sim->Update(dt)` directly (no wrapping transaction), then `RenderFrame()` calls renderers sorted by `GetOrder()`
+5. Main loop: `UpdateSimulators()` calls `sim->Update()` directly (no wrapping transaction), then `RenderFrame()` calls renderers sorted by `GetOrder()`
 
-### Term Provider Registry
+### Term Provider Registries
 
-- Extensions register `IDynamicsTermProvider` via `RegisterTermProvider(config_type, provider)`
-- `FindTermProvider(entity)` iterates all providers, returns the one whose `HasConfig()` matches
-- Used by `ext_newton::NewtonSystemSimulator` to discover constraint terms from entity references
+Two separate registries for Newton and PD solvers:
+
+- **Newton**: `RegisterTermProvider(config_type, IDynamicsTermProvider)` / `FindTermProvider(entity)` — used by `ext_newton::NewtonSystemSimulator`
+- **PD**: `RegisterPDTermProvider(config_type, IProjectiveTermProvider)` / `FindPDTermProvider(entity)` — used by `ext_pd::PDSystemSimulator`
+
+Both iterate providers and match via `HasConfig()` on constraint entities.
 
 ### Data Flow Rules
 
@@ -46,7 +49,7 @@ Owns the `core_system` module. Manages the System controller that orchestrates d
 
 - `Initialize()` creates window + GPU. Native: synchronous wait for GPU ready + `FinishGPUInit()`. WASM: async — GPU callbacks deferred to browser event loop
 - `Run()` initializes extensions then enters main loop. Native: `while` loop. WASM: `emscripten_set_main_loop_arg` with `EmscriptenMainLoop` callback that waits for GPU ready, then calls `FinishGPUInit()` + `InitializeExtensions()` on first ready frame
-- `RunFrame(dt)` is the extracted per-frame body. `input.Update()` runs at frame END (critical for WASM: key events arrive between frames, must not transition Pressed→Held before game logic reads them)
+- `RunFrame()` is the extracted per-frame body. `input.Update()` runs at frame END (critical for WASM: key events arrive between frames, must not transition Pressed→Held before game logic reads them)
 - Cleanup happens in `~System()` (reverse order: extensions → engine → GPU → window)
 - `InitializeExtensions()` is private — called once at the start of `Run()` (native) or on first GPU-ready frame (WASM)
 - Simulators are initialized before renderers (renderers may need simulator GPU resources)

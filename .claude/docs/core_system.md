@@ -42,9 +42,17 @@ template<database::Component T>
 void RegisterArray(gpu::BufferUsage extra_usage = gpu::BufferUsage::None,
                    const std::string& label = "");
 
+// Indexed array registration (topology arrays with per-entity offset transform)
+template<database::Component T, database::Component RefT>
+void RegisterIndexedArray(gpu::BufferUsage extra_usage, const std::string& label,
+                          simulate::IndexOffsetFn<T> offset_fn);
+
 // Array queries
 template<database::Component T>
 uint32 GetArrayTotalCount() const;
+
+// Get a type-erased array entry by component type id
+simulate::IDeviceArrayEntry* GetArrayEntryById(database::ComponentTypeId id) const;
 
 // Transactions (auto GPU sync + simulator topology notification)
 void Transact(std::function<void(database::Database&)> fn);
@@ -65,9 +73,6 @@ uint32 GetComponentCount() const;
 template<database::Component T>
 void Snapshot();
 
-// Raw GPU buffer readback (synchronous map)
-std::vector<uint8> ReadbackBuffer(WGPUBuffer src, uint64 size);
-
 // Host database access
 const database::Database& GetDatabase() const;
 database::Database& GetDatabase();  // non-const overload (for simulators)
@@ -78,10 +83,21 @@ void AddExtension(std::unique_ptr<IExtension> extension);
 void AddSimulator(std::unique_ptr<simulate::ISimulator> simulator);
 void AddRenderer(std::unique_ptr<render::IObjectRenderer> renderer);
 
-// Term provider registry (for Newton system)
+// Newton term provider registry
 void RegisterTermProvider(database::ComponentTypeId config_type,
                           std::unique_ptr<simulate::IDynamicsTermProvider> provider);
 simulate::IDynamicsTermProvider* FindTermProvider(database::Entity constraint_entity) const;
+
+// Find ALL providers whose config component exists on the given entity.
+std::vector<simulate::IDynamicsTermProvider*> FindAllTermProviders(
+    database::Entity constraint_entity) const;
+
+// PD term provider registry
+void RegisterPDTermProvider(database::ComponentTypeId config_type,
+                            std::unique_ptr<simulate::IProjectiveTermProvider> provider);
+simulate::IProjectiveTermProvider* FindPDTermProvider(database::Entity constraint_entity) const;
+std::vector<simulate::IProjectiveTermProvider*> FindAllPDTermProviders(
+    database::Entity constraint_entity) const;
 ```
 
 ### IExtension
@@ -103,30 +119,48 @@ main.cpp
   │     ├─ [Native] InitializeExtensions() → while loop
   │     ├─ [WASM]   emscripten_set_main_loop_arg → EmscriptenMainLoop callback
   │     │     ├── Wait for GPU ready → FinishGPUInit() → InitializeExtensions()
-  │     │     └── RunFrame(dt) on subsequent frames
-  │     └── RunFrame(dt):
+  │     │     └── RunFrame() on subsequent frames
+  │     └── RunFrame():  // fixed timestep (1/60), no frame timer
   │           ├── PollEvents + keyboard/mouse checks
-  │           ├── UpdateSimulators(dt)  ← sim->Update(dt) (no wrapping transaction)
-  │           ├── engine->UpdateUniforms(dt)
+  │           ├── UpdateSimulators()   ← sim->Update() (no wrapping transaction)
+  │           ├── engine->UpdateUniforms(dt)  ← constexpr dt for camera/render only
   │           ├── RenderFrame()        ← renderers sorted by GetOrder()
   │           └── input.Update()       ← transitions Pressed→Held (at END for WASM timing)
   └── ~System()                        ← shutdown extensions, engine, GPU, window
 ```
 
-## Term Provider Registry
+## Term Provider Registries
 
-Extensions register `IDynamicsTermProvider` implementations via `RegisterTermProvider()`. Newton system simulators discover terms at runtime by iterating constraint entity references and calling `FindTermProvider()`.
+Two separate registries — one for Newton terms (`IDynamicsTermProvider`), one for PD terms (`IProjectiveTermProvider`).
+
+### Newton Term Registry
+
+Extensions register `IDynamicsTermProvider` via `RegisterTermProvider()`. `NewtonSystemSimulator` discovers terms via `FindTermProvider()`.
 
 ```
-Extension::Register()              System (registry)              NewtonSystemSimulator
+ext_newton::Register()              System (registry)              NewtonSystemSimulator
   │                                   │                               │
-  ├─ RegisterTermProvider ──────►  type → Provider              Initialize():
-  │   (GravityConstraintData        │                               │
-  │    → GravityTermProvider)       │                            1. Read config.constraint_refs
-  │                                 │                            2. For each ref entity:
-  ├─ RegisterTermProvider ──────►  SpringConstraintData          3.   FindTermProvider(entity)
-  │   (→ SpringTermProvider)       │                            4.   provider->CreateTerm()
-  └─                               ▼                            5.   dynamics->AddTerm(term)
+  ├─ RegisterTermProvider ──────►  SpringConstraintData          Initialize():
+  │   (→ SpringTermProvider)       │                            1. Read config.constraint_refs
+  ├─ RegisterTermProvider ──────►  AreaConstraintData            2. For each ref entity:
+  │   (→ AreaTermProvider)         │                            3.   FindAllTermProviders(entity)
+  └─                               ▼                            4.   provider->CreateTerm()
+                                                                 5.   dynamics->AddTerm(term)
+```
+
+### PD Term Registry
+
+Extensions register `IProjectiveTermProvider` via `RegisterPDTermProvider()`. `PDSystemSimulator` discovers terms via `FindPDTermProvider()`.
+
+```
+ext_pd::Register()                  System (registry)              PDSystemSimulator
+  │                                   │                               │
+  ├─ RegisterPDTermProvider ────►  SpringConstraintData          Initialize():
+  │   (→ PDSpringTermProvider)     │                            1. Read config.constraint_refs
+  ├─ RegisterPDTermProvider ────►  AreaConstraintData            2. For each ref entity:
+  │   (→ PDAreaTermProvider)       │                            3.   FindAllPDTermProviders(entity)
+  └─                               ▼                            4.   provider->CreateTerm()
+                                                                 5.   dynamics->AddTerm(term)
 ```
 
 ## Data Flow

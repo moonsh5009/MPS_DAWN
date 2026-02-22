@@ -32,18 +32,20 @@ C++20 WebGPU graphics engine using Dawn (native) and Emscripten (WASM). CMake st
 src/main.cpp (executable: mps_dawn)
   ├── core_system     (mps::core_system)   — controller: orchestrates database + simulate + render + extensions
   │     ├── core_database  (mps::core_database)  — host ECS (entities, components, transactions, undo/redo)
-  │     ├── core_simulate  (mps::core_simulate)  — device DB, CG solver, IDynamicsTerm interfaces
+  │     ├── core_simulate  (mps::core_simulate)  — device DB, CG solver, IDynamicsTerm + IProjectiveTerm interfaces
   │     └── core_render    (mps::core_render)    — rendering pipeline (camera, passes) + IObjectRenderer interface
   ├── core_gpu       (mps::core_gpu)       — WebGPU abstraction (device, buffers, shaders, textures, compute, builders, RAII handles)
   ├── core_platform  (mps::core_platform)  — window, input
   ├── core_util      (mps::core_util)      — types, logger, timer, math
-  ├── ext_newton     (mps::ext_newton)     — Newton-Raphson solver + NewtonDynamics + velocity/position integration
-  ├── ext_dynamics   (mps::ext_dynamics)   — all IDynamicsTerm implementations (inertial, gravity, spring, area) + constraint builder
+  ├── ext_newton     (mps::ext_newton)     — Newton-Raphson solver + IDynamicsTerm implementations (spring, area) + built-in inertia/gravity
+  ├── ext_pd         (mps::ext_pd)         — Projective Dynamics solver + IProjectiveTerm implementations + Chebyshev Jacobi
+  ├── ext_dynamics   (mps::ext_dynamics)   — shared constraint types (SpringEdge, AreaTriangle) + constraint builder + GlobalPhysicsParams singleton
   ├── ext_mesh       (mps::ext_mesh)       — mesh rendering + normal computation
   └── ext_sample     (mps::ext_sample)     — minimal reference extension (not linked in main.cpp)
 
-extensions/ext_newton/     — Newton solver (NewtonDynamics + NewtonSystemSimulator)
-extensions/ext_dynamics/   — all IDynamicsTerm implementations (inertial, gravity, spring, area) + constraint builder
+extensions/ext_newton/     — Newton solver + IDynamicsTerm implementations (spring, area) + built-in inertia/gravity
+extensions/ext_pd/         — Projective Dynamics solver + IProjectiveTerm implementations (spring, area)
+extensions/ext_dynamics/   — shared constraint types, config components, constraint builder
 extensions/ext_mesh/       — mesh factories (grid, OBJ, pin/unpin) + normals + indexed triangle rendering
 extensions/ext_sample/     — minimal reference extension (not linked in main.cpp)
 ```
@@ -55,9 +57,11 @@ Static plugin architecture (no dynamic loading, WASM compatible). Core modules d
 | Interface | Module | Purpose |
 |-----------|--------|---------|
 | `IExtension` | core_system | Entry point: `Register(System&)` — registers components, simulators, renderers |
-| `ISimulator` | core_simulate | Per-frame simulation: `Initialize()`, `Update(dt)`, `OnDatabaseChanged()` |
-| `IDynamicsTerm` | core_simulate | Pluggable physics term: `DeclareSparsity()`, `Assemble()` into Newton solver |
-| `IDynamicsTermProvider` | core_simulate | Term factory: `CreateTerm()`, `DeclareTopology()`, `QueryTopology()` |
+| `ISimulator` | core_simulate | Per-frame simulation: `Initialize()`, `Update()`, `OnDatabaseChanged()` |
+| `IDynamicsTerm` | core_simulate | Newton physics term: `DeclareSparsity()`, `Assemble()` |
+| `IDynamicsTermProvider` | core_simulate | Newton term factory: `CreateTerm()`, `DeclareTopology()`, `QueryTopology()` |
+| `IProjectiveTerm` | core_simulate | PD constraint term: `AssembleLHS()`, `ProjectRHS()` (fused local projection + RHS) |
+| `IProjectiveTermProvider` | core_simulate | PD term factory: `CreateTerm()`, `DeclareTopology()`, `QueryTopology()` |
 | `IObjectRenderer` | core_render | Rendering: `Render(RenderEngine&, WGPURenderPassEncoder)` |
 
 ### Third-Party Dependencies (`third_party/`, git submodules)
@@ -70,7 +74,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 
 ### Namespaces
 
-`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system) | `ext_newton` / `ext_dynamics` / `ext_mesh` / `ext_sample` (extensions — not under `mps`)
+`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system) | `ext_newton` / `ext_pd` / `ext_dynamics` / `ext_mesh` / `ext_sample` (extensions — not under `mps`)
 
 ## Key Coding Conventions
 
@@ -94,7 +98,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_newton` | `ext_dynamics` | `ext_mesh` | `ext_sample` | *(omit for project-wide)*
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_newton` | `ext_pd` | `ext_dynamics` | `ext_mesh` | `ext_sample` | *(omit for project-wide)*
 
 ## Module Reference Documentation
 
@@ -104,7 +108,7 @@ Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` |
 2. **DO NOT** read source files (`.h`, `.cpp`) to understand a module's structure or API. The docs already have this information and reading source files wastes tokens.
 3. **ONLY** read actual source files when you need to see implementation details for a specific function or need to edit the file.
 
-Doc files: `.claude/docs/core_util.md`, `core_platform.md`, `core_gpu.md`, `core_database.md`, `core_render.md`, `core_simulate.md`, `core_system.md`, `ext_newton.md`, `ext_dynamics.md`, `ext_mesh.md`, `ext_sample.md`
+Doc files: `.claude/docs/core_util.md`, `core_platform.md`, `core_gpu.md`, `core_database.md`, `core_render.md`, `core_simulate.md`, `core_system.md`, `ext_newton.md`, `ext_pd.md`, `ext_dynamics.md`, `ext_mesh.md`, `ext_sample.md`
 
 Agent files (`.claude/agents/*.md`) contain task instructions and workflow guidelines. Use `/sync-docs` to keep documentation synchronized with the codebase.
 

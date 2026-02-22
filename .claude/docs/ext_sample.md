@@ -39,7 +39,7 @@ void Register(mps::system::System& system) override;
 explicit SampleSimulator(mps::system::System& system);
 const std::string& GetName() const override;
 void Initialize() override;
-void Update(mps::float32 dt) override;
+void Update() override;
 ```
 
 ### SampleRenderer

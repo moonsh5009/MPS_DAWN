@@ -33,7 +33,21 @@ cmd.exe //c "C:\emsdk\emsdk_env.bat >nul 2>&1 && set PATH=C:\Users\user\AppData\
 
 ## Step 3: Native Runtime Verification
 
-Claude Code sandbox blocks GPU `LoadLibrary`, so use **Task Scheduler** to run the exe outside the sandbox:
+Claude Code sandbox blocks GPU `LoadLibrary`, so use **Task Scheduler** to run the exe outside the sandbox.
+
+**IMPORTANT — Enable simulation before runtime test:**
+Task Scheduler cannot send keyboard input, so the simulation will stay paused (default). Temporarily set the initial state to running:
+
+1. In `src/core_system/system.h`, change `simulation_running_` initial value:
+   ```cpp
+   bool simulation_running_ = true;  // was false
+   ```
+2. Rebuild: `cmake --build build --config Debug`
+3. Run the runtime test (steps below)
+4. **After verification, revert immediately:**
+   ```cpp
+   bool simulation_running_ = false;  // restore default
+   ```
 
 ```bash
 # 1. Create a bat file for clean execution
@@ -58,9 +72,9 @@ cmd.exe //c "schtasks /Delete /TN mps_verify /F" > /dev/null 2>&1
 
 **Check log output for:**
 - [ ] `GPU initialized:` — D3D12 backend active
-- [ ] All extensions registered (ext_newton, ext_dynamics, ext_mesh)
-- [ ] All term providers registered (GravityTermProvider, SpringTermProvider, AreaTermProvider)
-- [ ] All simulators initialized (NewtonSystemSimulator, MeshPostProcessor)
+- [ ] All extensions registered (ext_dynamics, ext_mesh, ext_newton, ext_pd)
+- [ ] All term providers registered (SpringTermProvider, AreaTermProvider, PDSpringTermProvider, PDAreaTermProvider)
+- [ ] All simulators initialized (NewtonSystemSimulator, PDSystemSimulator, MeshPostProcessor)
 - [ ] All renderers initialized (MeshRenderer)
 - [ ] `Entering main loop...` — no crash before frame loop
 - [ ] No `[ERROR]` lines in output
@@ -75,8 +89,9 @@ From a 64x64 cloth grid, expected values:
 | Edges (springs) | ~16000 (structural + bending) |
 | Faces | 7938 |
 | NNZ (CSR off-diagonal) | ~32000 |
-| Newton terms | 4 (Inertial + Gravity + Spring + Area) |
-| Simulators | 2 (NewtonSystemSimulator + MeshPostProcessor) |
+| Newton terms | 2 (Spring + Area) — Inertial + Gravity are built into NewtonDynamics |
+| PD terms | 2 (PDSpringTerm + PDAreaTerm) |
+| Simulators | 3 (NewtonSystemSimulator + PDSystemSimulator + MeshPostProcessor) |
 | Renderers | 1 (MeshRenderer) |
 
 ## Common Issues

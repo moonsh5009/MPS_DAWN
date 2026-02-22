@@ -36,7 +36,9 @@ src/core_database/
 | `ArrayStorage<T>` | `array_storage.h` | Stores variable-length `vector<T>` per entity, dirty flag |
 | `SetArrayOp<T>` | `array_transaction.h` | Records array set (Apply/Revert) |
 | `RemoveArrayOp<T>` | `array_transaction.h` | Records array removal |
-| `Database` | `database.h` | ECS facade with transactions, undo/redo, and array ops |
+| `ISingletonStorage` | `database.h` | Type-erased base for singleton storage |
+| `SingletonStorage<T>` | `database.h` | Typed singleton storage with default-constructed value |
+| `Database` | `database.h` | ECS facade with transactions, undo/redo, array ops, and singletons |
 
 ## API
 
@@ -80,6 +82,11 @@ template<Component T> bool HasArray(Entity) const;
 IArrayStorage* GetArrayStorageById(ComponentTypeId);
 const IArrayStorage* GetArrayStorageById(ComponentTypeId) const;
 std::vector<ComponentTypeId> GetDirtyArrayTypeIds() const;
+
+// Singleton operations
+template<Component T> void SetSingleton(const T& value);
+template<Component T> const T& GetSingleton() const;  // returns default if never set
+template<Component T> T& GetSingleton();
 
 // Direct operations (no transaction recording — used by undo/redo replay)
 template<Component T> void DirectAddComponent(Entity, const T&);

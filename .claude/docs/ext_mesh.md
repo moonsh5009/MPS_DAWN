@@ -41,17 +41,21 @@ struct MeshResult {
     uint32 face_count = 0;
 };
 
-// Create a grid mesh on XZ plane at Y=height_offset.
+// Create a grid mesh on XZ plane at given offset.
 // Adds SimPosition, SimVelocity, SimMass (area-weighted), MeshFace, MeshComponent.
 MeshResult CreateGrid(database::Database& db,
                       uint32 width, uint32 height, float32 spacing,
-                      float32 height_offset = 3.0f);
+                      util::vec3 offset, float32 density = 100.0f);
 
 // Import a triangle mesh from OBJ file (filename relative to assets/objs/).
 // Quads are automatically triangulated.
+// offset: translation applied to all vertices after scaling.
+// density: surface density (kg/m²) for area-weighted mass computation.
 MeshResult ImportOBJ(database::Database& db,
                      const std::string& filename,
-                     float32 scale = 1.0f);
+                     float32 scale = 1.0f,
+                     util::vec3 offset = {0.0f, 0.0f, 0.0f},
+                     float32 density = 100.0f);
 
 // Pin vertices: sets mass=9999999, inv_mass=0, saves original mass in FixedVertex.
 void PinVertices(database::Database& db, database::Entity mesh_entity,
@@ -83,7 +87,7 @@ explicit MeshPostProcessor(mps::system::System& system);
 ~MeshPostProcessor() override;
 const std::string& GetName() const override;       // "MeshPostProcessor"
 void Initialize() override;
-void Update(mps::float32 dt) override;
+void Update() override;
 void Shutdown() override;
 void OnDatabaseChanged() override;  // Node/face count change detection + reinit
 
@@ -94,7 +98,7 @@ mps::uint32 GetFaceCount() const;
 
 `Initialize()` reads `MeshComponent` metadata and `ArrayStorage<MeshFace>` from Database, creates `NormalComputer`, face buffer, and face index buffer.
 
-`Update(dt)` dispatches `NormalComputer::Compute()` on the current `SimPosition` GPU buffer. Must run after NewtonSystemSimulator updates positions.
+`Update()` dispatches `NormalComputer::Compute()` on the current `SimPosition` GPU buffer. Must run after NewtonSystemSimulator updates positions.
 
 `OnDatabaseChanged()` compares current node count and face count against cached values. Calls `Shutdown()` + `Initialize()` on mismatch.
 
