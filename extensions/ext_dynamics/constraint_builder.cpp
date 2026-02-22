@@ -1,6 +1,8 @@
 #include "ext_dynamics/constraint_builder.h"
 #include "ext_dynamics/spring_types.h"
+#include "ext_dynamics/spring_constraint.h"
 #include "ext_dynamics/area_types.h"
+#include "ext_dynamics/area_constraint.h"
 #include "ext_mesh/mesh_types.h"
 #include "ext_mesh/mesh_component.h"
 #include "core_database/database.h"
@@ -15,18 +17,66 @@ using namespace mps::database;
 
 namespace ext_dynamics {
 
-// Compute AreaTriangle with rest_area + Dm_inv from positions and faces
-static std::vector<AreaTriangle> ComputeAreaTriangles(
-    const std::vector<ext_mesh::MeshFace>& faces,
-    const std::vector<SimPosition>& positions) {
+uint32 BuildSpringConstraints(Database& db, Entity mesh_entity, float32 stiffness) {
+    const auto* positions = db.GetArray<SimPosition>(mesh_entity);
+    const auto* faces = db.GetArray<ext_mesh::MeshFace>(mesh_entity);
+    if (!positions || !faces) return 0;
+
+    // Extract unique edges from face topology
+    std::set<std::pair<uint32, uint32>> edge_set;
+    auto add_edge = [&](uint32 a, uint32 b) {
+        if (a > b) std::swap(a, b);
+        edge_set.insert({a, b});
+    };
+    for (const auto& face : *faces) {
+        add_edge(face.n0, face.n1);
+        add_edge(face.n1, face.n2);
+        add_edge(face.n0, face.n2);
+    }
+
+    std::vector<SpringEdge> edges;
+    edges.reserve(edge_set.size());
+    for (const auto& [a, b] : edge_set) {
+        const auto& pa = (*positions)[a];
+        const auto& pb = (*positions)[b];
+        float32 dx = pb.x - pa.x;
+        float32 dy = pb.y - pa.y;
+        float32 dz = pb.z - pa.z;
+
+        SpringEdge edge;
+        edge.n0 = a;
+        edge.n1 = b;
+        edge.rest_length = std::sqrt(dx * dx + dy * dy + dz * dz);
+        edges.push_back(edge);
+    }
+
+    uint32 count = static_cast<uint32>(edges.size());
+
+    // Update MeshComponent edge count
+    auto* mesh_comp = db.GetComponent<ext_mesh::MeshComponent>(mesh_entity);
+    if (mesh_comp) {
+        ext_mesh::MeshComponent updated = *mesh_comp;
+        updated.edge_count = count;
+        db.SetComponent<ext_mesh::MeshComponent>(mesh_entity, updated);
+    }
+
+    db.SetArray<SpringEdge>(mesh_entity, std::move(edges));
+    db.AddComponent<SpringConstraintData>(mesh_entity, {stiffness});
+    return count;
+}
+
+uint32 BuildAreaConstraints(Database& db, Entity mesh_entity, float32 stiffness) {
+    const auto* positions = db.GetArray<SimPosition>(mesh_entity);
+    const auto* faces = db.GetArray<ext_mesh::MeshFace>(mesh_entity);
+    if (!positions || !faces) return 0;
 
     std::vector<AreaTriangle> triangles;
-    triangles.reserve(faces.size());
+    triangles.reserve(faces->size());
 
-    for (const auto& face : faces) {
-        const auto& p0 = positions[face.n0];
-        const auto& p1 = positions[face.n1];
-        const auto& p2 = positions[face.n2];
+    for (const auto& face : *faces) {
+        const auto& p0 = (*positions)[face.n0];
+        const auto& p1 = (*positions)[face.n1];
+        const auto& p2 = (*positions)[face.n2];
 
         float32 e1x = p1.x - p0.x, e1y = p1.y - p0.y, e1z = p1.z - p0.z;
         float32 e2x = p2.x - p0.x, e2y = p2.y - p0.y, e2z = p2.z - p0.z;
@@ -60,74 +110,10 @@ static std::vector<AreaTriangle> ComputeAreaTriangles(
         triangles.push_back(tri);
     }
 
-    return triangles;
-}
-
-// Extract unique edges from face topology
-static std::vector<SpringEdge> ExtractEdgesFromFaces(
-    const std::vector<ext_mesh::MeshFace>& faces,
-    const std::vector<SimPosition>& positions) {
-
-    std::set<std::pair<uint32, uint32>> edge_set;
-
-    auto add_edge = [&](uint32 a, uint32 b) {
-        if (a > b) std::swap(a, b);
-        edge_set.insert({a, b});
-    };
-
-    for (const auto& face : faces) {
-        add_edge(face.n0, face.n1);
-        add_edge(face.n1, face.n2);
-        add_edge(face.n0, face.n2);
-    }
-
-    std::vector<SpringEdge> edges;
-    edges.reserve(edge_set.size());
-
-    for (const auto& [a, b] : edge_set) {
-        const auto& pa = positions[a];
-        const auto& pb = positions[b];
-        float32 dx = pb.x - pa.x;
-        float32 dy = pb.y - pa.y;
-        float32 dz = pb.z - pa.z;
-
-        SpringEdge edge;
-        edge.n0 = a;
-        edge.n1 = b;
-        edge.rest_length = std::sqrt(dx * dx + dy * dy + dz * dz);
-        edges.push_back(edge);
-    }
-
-    return edges;
-}
-
-ConstraintResult BuildConstraintsFromFaces(Database& db,
-                                           Entity mesh_entity) {
-    ConstraintResult result;
-
-    const auto* positions = db.GetArray<SimPosition>(mesh_entity);
-    const auto* faces = db.GetArray<ext_mesh::MeshFace>(mesh_entity);
-
-    if (!positions || !faces) return result;
-
-    auto edges = ExtractEdgesFromFaces(*faces, *positions);
-    result.edge_count = static_cast<uint32>(edges.size());
-
-    auto area_triangles = ComputeAreaTriangles(*faces, *positions);
-    result.area_count = static_cast<uint32>(area_triangles.size());
-
-    // Update MeshComponent edge count
-    auto* mesh_comp = db.GetComponent<ext_mesh::MeshComponent>(mesh_entity);
-    if (mesh_comp) {
-        ext_mesh::MeshComponent updated = *mesh_comp;
-        updated.edge_count = result.edge_count;
-        db.SetComponent<ext_mesh::MeshComponent>(mesh_entity, updated);
-    }
-
-    db.SetArray<SpringEdge>(mesh_entity, std::move(edges));
-    db.SetArray<AreaTriangle>(mesh_entity, std::move(area_triangles));
-
-    return result;
+    uint32 count = static_cast<uint32>(triangles.size());
+    db.SetArray<AreaTriangle>(mesh_entity, std::move(triangles));
+    db.AddComponent<AreaConstraintData>(mesh_entity, {stiffness});
+    return count;
 }
 
 }  // namespace ext_dynamics

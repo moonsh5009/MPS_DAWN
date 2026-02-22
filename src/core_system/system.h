@@ -4,7 +4,6 @@
 #include "core_database/database.h"
 #include "core_gpu/gpu_types.h"
 #include "core_simulate/device_db.h"
-#include "core_util/timer.h"
 #include <functional>
 #include <memory>
 #include <string>
@@ -18,7 +17,7 @@ struct WGPUSurfaceImpl;             typedef WGPUSurfaceImpl* WGPUSurface;
 
 namespace mps {
 namespace platform { class IWindow; }
-namespace simulate { class ISimulator; class IDynamicsTermProvider; }
+namespace simulate { class ISimulator; class IDynamicsTermProvider; class IProjectiveTermProvider; }
 namespace render { class IObjectRenderer; class RenderEngine; }
 namespace system {
 
@@ -107,11 +106,24 @@ public:
     // Returns nullptr if no match.
     simulate::IDynamicsTermProvider* FindTermProvider(database::Entity constraint_entity) const;
 
+    // Find ALL providers whose config component exists on the given entity.
+    std::vector<simulate::IDynamicsTermProvider*> FindAllTermProviders(
+        database::Entity constraint_entity) const;
+
+    // --- PD term provider registry (for Projective Dynamics system) ---
+    void RegisterPDTermProvider(database::ComponentTypeId config_type,
+                                std::unique_ptr<simulate::IProjectiveTermProvider> provider);
+
+    simulate::IProjectiveTermProvider* FindPDTermProvider(database::Entity constraint_entity) const;
+
+    std::vector<simulate::IProjectiveTermProvider*> FindAllPDTermProviders(
+        database::Entity constraint_entity) const;
+
 private:
     void InitializeExtensions();
     void ShutdownExtensions();
-    void UpdateSimulators(float32 dt);
-    void RunFrame(float32 dt);
+    void UpdateSimulators();
+    void RunFrame();
     void RenderFrame();
     void SyncToDevice();
     void NotifyDatabaseChanged();
@@ -141,11 +153,14 @@ private:
     // WASM async GPU initialization
     WGPUSurface pending_surface_ = nullptr;
     bool gpu_ready_ = false;
-    util::Timer frame_timer_;
 
     // Term provider registry: config component type → provider
     std::unordered_map<database::ComponentTypeId,
                        std::unique_ptr<simulate::IDynamicsTermProvider>> term_providers_;
+
+    // PD term provider registry: config component type → provider
+    std::unordered_map<database::ComponentTypeId,
+                       std::unique_ptr<simulate::IProjectiveTermProvider>> pd_term_providers_;
 };
 
 // ============================================================================

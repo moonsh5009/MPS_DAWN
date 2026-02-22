@@ -6,7 +6,7 @@
 
 namespace mps { namespace system { class System; } }
 
-namespace ext_dynamics {
+namespace ext_newton {
 
 // Creates SpringTerm instances from SpringConstraintData entities.
 // Edge topology is gathered from ALL entities with ArrayStorage<SpringEdge>,
@@ -35,4 +35,4 @@ private:
     mps::uint32 edge_count_ = 0;
 };
 
-}  // namespace ext_dynamics
+}  // namespace ext_newton

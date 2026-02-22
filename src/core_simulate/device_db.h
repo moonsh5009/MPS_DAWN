@@ -2,9 +2,12 @@
 
 #include "core_database/component_type.h"
 #include "core_database/database.h"
+#include "core_gpu/gpu_buffer.h"
 #include "core_gpu/gpu_types.h"
 #include "core_simulate/device_array_buffer.h"
 #include "core_simulate/device_buffer_entry.h"
+#include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -15,6 +18,50 @@ struct WGPUBufferImpl;  typedef WGPUBufferImpl* WGPUBuffer;
 
 namespace mps {
 namespace simulate {
+
+// Type-erased singleton buffer entry
+class ISingletonBufferEntry {
+public:
+    virtual ~ISingletonBufferEntry() = default;
+    virtual bool SyncFromHost(const database::Database& db) = 0;
+    virtual WGPUBuffer GetBufferHandle() const = 0;
+};
+
+// Typed singleton buffer: transforms HostT → GpuT and uploads to uniform buffer
+template<database::Component HostT, typename GpuT>
+class SingletonBufferEntry : public ISingletonBufferEntry {
+public:
+    SingletonBufferEntry(std::function<GpuT(const HostT&)> transform,
+                         const std::string& label)
+        : transform_(std::move(transform)) {
+        GpuT initial = transform_(HostT{});
+        buffer_ = std::make_unique<gpu::GPUBuffer<GpuT>>(
+            gpu::BufferUsage::Uniform,
+            std::span<const GpuT>(&initial, 1), label);
+    }
+
+    bool SyncFromHost(const database::Database& db) override {
+        const auto& host_val = db.GetSingleton<HostT>();
+        if (first_sync_ || std::memcmp(&host_val, &cached_, sizeof(HostT)) != 0) {
+            cached_ = host_val;
+            GpuT gpu_val = transform_(cached_);
+            buffer_->WriteData(std::span<const GpuT>(&gpu_val, 1));
+            first_sync_ = false;
+            return true;
+        }
+        return false;
+    }
+
+    WGPUBuffer GetBufferHandle() const override {
+        return buffer_->GetHandle();
+    }
+
+private:
+    std::function<GpuT(const HostT&)> transform_;
+    std::unique_ptr<gpu::GPUBuffer<GpuT>> buffer_;
+    HostT cached_{};
+    bool first_sync_ = true;
+};
 
 // Mirrors host ECS data (components and arrays) into GPU buffers.
 // Register component/array types, then call Sync() each frame to upload dirty data.
@@ -59,6 +106,15 @@ public:
     // Get a type-erased array entry by id (checks arrays + indexed).
     IDeviceArrayEntry* GetArrayEntryById(database::ComponentTypeId id) const;
 
+    // Register a singleton for GPU mirroring (host type → GPU type transform)
+    template<database::Component HostT, typename GpuT>
+    void RegisterSingleton(std::function<GpuT(const HostT&)> transform,
+                           const std::string& label = "");
+
+    // Get the GPU buffer handle for a registered singleton
+    template<database::Component HostT>
+    WGPUBuffer GetSingletonBuffer() const;
+
     // Check if a component type is registered.
     bool IsRegistered(database::ComponentTypeId id) const;
 
@@ -70,6 +126,9 @@ private:
     // Indexed arrays: topology arrays with index offset transform
     std::unordered_map<database::ComponentTypeId, std::unique_ptr<IDeviceArrayEntry>> indexed_entries_;
     std::unordered_map<database::ComponentTypeId, database::ComponentTypeId> indexed_ref_map_;
+
+    // Singleton uniform buffers (host → GPU transform)
+    std::unordered_map<database::ComponentTypeId, std::unique_ptr<ISingletonBufferEntry>> singleton_entries_;
 };
 
 // ============================================================================
@@ -128,6 +187,25 @@ WGPUBuffer DeviceDB::GetBufferHandle() const {
     auto iit = indexed_entries_.find(id);
     if (iit != indexed_entries_.end()) {
         return iit->second->GetBufferHandle();
+    }
+    return nullptr;
+}
+
+template<database::Component HostT, typename GpuT>
+void DeviceDB::RegisterSingleton(std::function<GpuT(const HostT&)> transform,
+                                  const std::string& label) {
+    database::ComponentTypeId id = database::GetComponentTypeId<HostT>();
+    if (singleton_entries_.contains(id)) return;
+    singleton_entries_.emplace(id,
+        std::make_unique<SingletonBufferEntry<HostT, GpuT>>(std::move(transform), label));
+}
+
+template<database::Component HostT>
+WGPUBuffer DeviceDB::GetSingletonBuffer() const {
+    database::ComponentTypeId id = database::GetComponentTypeId<HostT>();
+    auto it = singleton_entries_.find(id);
+    if (it != singleton_entries_.end()) {
+        return it->second->GetBufferHandle();
     }
     return nullptr;
 }

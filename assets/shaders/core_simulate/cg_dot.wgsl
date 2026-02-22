@@ -4,6 +4,7 @@
 
 #import "core_simulate/header/solver_params.wgsl"
 
+@group(0) @binding(0) var<uniform> solver: SolverParams;
 @group(0) @binding(1) var<storage, read> vec_a: array<vec4f>;
 @group(0) @binding(2) var<storage, read> vec_b: array<vec4f>;
 @group(0) @binding(3) var<storage, read_write> partials: array<f32>;
@@ -20,7 +21,7 @@ fn cs_main(
     let local_id = lid.x;
 
     var val = 0.0;
-    if (global_id < params.node_count) {
+    if (global_id < solver.node_count) {
         let a = vec_a[global_id].xyz;
         let b = vec_b[global_id].xyz;
         val = dot(a, b);

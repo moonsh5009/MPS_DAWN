@@ -1,4 +1,4 @@
-#include "ext_dynamics/area_term.h"
+#include "ext_newton/area_term.h"
 #include "core_gpu/gpu_core.h"
 #include "core_gpu/shader_loader.h"
 #include "core_gpu/bind_group_builder.h"
@@ -11,7 +11,10 @@ using namespace mps;
 using namespace mps::util;
 using namespace mps::gpu;
 
-namespace ext_dynamics {
+using ext_dynamics::AreaTriangle;
+using ext_dynamics::FaceCSRMapping;
+
+namespace ext_newton {
 
 const std::string AreaTerm::kName = "AreaTerm";
 
@@ -62,7 +65,7 @@ void AreaTerm::Initialize(const simulate::SparsityBuilder& sparsity, const simul
         BufferUsage::Uniform, std::span<const AreaParams>(&params, 1), "area_params");
 
     // Create pipeline
-    auto shader = ShaderLoader::CreateModule("ext_dynamics/accumulate_area.wgsl", "accumulate_area");
+    auto shader = ShaderLoader::CreateModule("ext_newton/accumulate_area.wgsl", "accumulate_area");
     WGPUComputePipelineDescriptor desc = WGPU_COMPUTE_PIPELINE_DESCRIPTOR_INIT;
     std::string label = "accumulate_area";
     desc.label = {label.data(), label.size()};
@@ -82,14 +85,15 @@ void AreaTerm::Initialize(const simulate::SparsityBuilder& sparsity, const simul
 
     auto bgl = wgpuComputePipelineGetBindGroupLayout(pipeline_.GetHandle(), 0);
     bg_area_ = BindGroupBuilder("bg_area")
-        .AddBuffer(0, ctx.params_buffer, ctx.params_size)
-        .AddBuffer(1, ctx.position_buffer, pos_sz)
-        .AddBuffer(2, ctx.force_buffer, force_sz)
-        .AddBuffer(3, triangle_buffer_->GetHandle(), tri_sz)
-        .AddBuffer(4, ctx.diag_buffer, diag_sz)
-        .AddBuffer(5, area_params_buffer_->GetHandle(), sizeof(AreaParams))
-        .AddBuffer(6, ctx.csr_values_buffer, csr_val_sz)
-        .AddBuffer(7, face_csr_buffer_->GetHandle(), csr_map_sz)
+        .AddBuffer(0, ctx.physics_buffer, ctx.physics_size)
+        .AddBuffer(1, ctx.params_buffer, ctx.params_size)
+        .AddBuffer(2, ctx.position_buffer, pos_sz)
+        .AddBuffer(3, ctx.force_buffer, force_sz)
+        .AddBuffer(4, triangle_buffer_->GetHandle(), tri_sz)
+        .AddBuffer(5, ctx.diag_buffer, diag_sz)
+        .AddBuffer(6, area_params_buffer_->GetHandle(), sizeof(AreaParams))
+        .AddBuffer(7, ctx.csr_values_buffer, csr_val_sz)
+        .AddBuffer(8, face_csr_buffer_->GetHandle(), csr_map_sz)
         .Build(bgl);
     wgpuBindGroupLayoutRelease(bgl);
 
@@ -118,4 +122,4 @@ void AreaTerm::Shutdown() {
     LogInfo("AreaTerm: shutdown");
 }
 
-}  // namespace ext_dynamics
+}  // namespace ext_newton

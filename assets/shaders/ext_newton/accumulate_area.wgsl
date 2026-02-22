@@ -9,7 +9,11 @@
 // Hessian: SVD-projected PSD (Teran 2005 / Smith 2019)
 
 #import "core_simulate/header/solver_params.wgsl"
+#import "core_simulate/header/physics_params.wgsl"
 #import "core_simulate/header/atomic_float.wgsl"
+
+@group(0) @binding(0) var<uniform> physics: PhysicsParams;
+@group(0) @binding(1) var<uniform> solver: SolverParams;
 
 struct AreaTriangle {
     n0: u32,
@@ -38,13 +42,13 @@ struct FaceCSRMapping {
     csr_21: u32,
 };
 
-@group(0) @binding(1) var<storage, read> positions: array<vec4f>;
-@group(0) @binding(2) var<storage, read_write> forces: array<atomic<u32>>;
-@group(0) @binding(3) var<storage, read> triangles: array<AreaTriangle>;
-@group(0) @binding(4) var<storage, read_write> diag_values: array<atomic<u32>>;
-@group(0) @binding(5) var<uniform> area_params: AreaParams;
-@group(0) @binding(6) var<storage, read_write> csr_values: array<atomic<u32>>;
-@group(0) @binding(7) var<storage, read> face_csr_map: array<FaceCSRMapping>;
+@group(0) @binding(2) var<storage, read> positions: array<vec4f>;
+@group(0) @binding(3) var<storage, read_write> forces: array<atomic<u32>>;
+@group(0) @binding(4) var<storage, read> triangles: array<AreaTriangle>;
+@group(0) @binding(5) var<storage, read_write> diag_values: array<atomic<u32>>;
+@group(0) @binding(6) var<uniform> area_params: AreaParams;
+@group(0) @binding(7) var<storage, read_write> csr_values: array<atomic<u32>>;
+@group(0) @binding(8) var<storage, read> face_csr_map: array<FaceCSRMapping>;
 
 // Accumulate a 3x3 block = scale * a * b^T into off-diagonal CSR
 fn atomicAddOuter(base: u32, a: vec3f, b: vec3f, s: f32) {
@@ -137,7 +141,7 @@ fn accumulateBlock(
 @compute @workgroup_size(64)
 fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
     let fid = gid.x;
-    if (fid >= params.face_count) {
+    if (fid >= solver.face_count) {
         return;
     }
 
@@ -246,7 +250,7 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
     atomicAddFloat(&forces[bc + 2u], force2.z);
 
     // ===== SVD-Projected PSD Hessian =====
-    let dt2 = params.dt * params.dt;
+    let dt2 = physics.dt_sq;
     let scale = dt2 * A0;
 
     // Stretch Hessian in singular value space (2x2)

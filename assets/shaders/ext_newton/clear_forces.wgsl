@@ -3,12 +3,13 @@
 
 #import "core_simulate/header/solver_params.wgsl"
 
+@group(0) @binding(0) var<uniform> solver: SolverParams;
 @group(0) @binding(1) var<storage, read_write> forces: array<atomic<u32>>;
 
 @compute @workgroup_size(64)
 fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
     let id = gid.x;
-    if (id >= params.node_count) {
+    if (id >= solver.node_count) {
         return;
     }
 

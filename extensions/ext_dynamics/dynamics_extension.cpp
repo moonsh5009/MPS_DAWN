@@ -1,16 +1,11 @@
 #include "ext_dynamics/dynamics_extension.h"
-#include "ext_dynamics/spring_constraint.h"
 #include "ext_dynamics/spring_types.h"
-#include "ext_dynamics/spring_term_provider.h"
-#include "ext_dynamics/area_constraint.h"
 #include "ext_dynamics/area_types.h"
-#include "ext_dynamics/area_term_provider.h"
 #include "core_simulate/sim_components.h"
+#include "ext_dynamics/global_physics_params.h"
 #include "core_system/system.h"
-#include "core_database/component_type.h"
 #include "core_gpu/gpu_types.h"
 #include "core_util/logger.h"
-#include <memory>
 
 using namespace mps;
 using namespace mps::util;
@@ -30,6 +25,19 @@ const std::string& DynamicsExtension::GetName() const {
 }
 
 void DynamicsExtension::Register(System& system) {
+    // Register physics params singleton (shared by all solvers)
+    system.GetDeviceDB().RegisterSingleton<GlobalPhysicsParams, PhysicsParamsGPU>(
+        ToGPU, "physics_params");
+
+    // Register particle simulation arrays (GPU mirroring for positions/velocity/mass)
+    // Placed here so both Newton and PD extensions can coexist without duplicate registration.
+    system.RegisterArray<SimPosition>(
+        gpu::BufferUsage::Vertex, "sim_position");
+    system.RegisterArray<SimVelocity>(
+        gpu::BufferUsage::None, "sim_velocity");
+    system.RegisterArray<SimMass>(
+        gpu::BufferUsage::None, "sim_mass");
+
     // Register indexed arrays (topology with auto-offset relative to SimPosition)
     system.RegisterIndexedArray<SpringEdge, SimPosition>(
         gpu::BufferUsage::None, "spring_edges",
@@ -38,16 +46,6 @@ void DynamicsExtension::Register(System& system) {
     system.RegisterIndexedArray<AreaTriangle, SimPosition>(
         gpu::BufferUsage::None, "area_triangles",
         [](AreaTriangle& t, uint32 off) { t.n0 += off; t.n1 += off; t.n2 += off; });
-
-    // Spring constraint: edge-based forces + Hessian
-    system.RegisterTermProvider(
-        GetComponentTypeId<SpringConstraintData>(),
-        std::make_unique<SpringTermProvider>(system_));
-
-    // Area constraint: triangle area preservation
-    system.RegisterTermProvider(
-        GetComponentTypeId<AreaConstraintData>(),
-        std::make_unique<AreaTermProvider>(system_));
 }
 
 }  // namespace ext_dynamics

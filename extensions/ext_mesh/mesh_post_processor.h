@@ -25,7 +25,7 @@ public:
 
     [[nodiscard]] const std::string& GetName() const override;
     void Initialize() override;
-    void Update(mps::float32 dt) override;
+    void Update() override;
     void Shutdown() override;
     void OnDatabaseChanged() override;
 

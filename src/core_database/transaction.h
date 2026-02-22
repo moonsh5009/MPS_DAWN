@@ -102,6 +102,21 @@ private:
     std::vector<std::unique_ptr<IOperation>> operations_;
 };
 
+// Operation: set a singleton value
+template<Component T>
+class SetSingletonOp : public IOperation {
+public:
+    SetSingletonOp(const T& old_value, const T& new_value)
+        : old_value_(old_value), new_value_(new_value) {}
+
+    void Apply(Database& db) override;
+    void Revert(Database& db) override;
+
+private:
+    T old_value_;
+    T new_value_;
+};
+
 // Manages the active transaction and undo/redo stacks
 class TransactionManager {
 public:

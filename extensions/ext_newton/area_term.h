@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace ext_dynamics {
+namespace ext_newton {
 
 // GPU-side parameters for area constraint stiffness (16 bytes, uniform-compatible)
 struct alignas(16) AreaParams {
@@ -21,7 +21,7 @@ struct alignas(16) AreaParams {
 // Force + full Hessian (diagonal + off-diagonal CSR blocks).
 class AreaTerm : public mps::simulate::IDynamicsTerm {
 public:
-    AreaTerm(const std::vector<AreaTriangle>& triangles, mps::float32 stiffness);
+    AreaTerm(const std::vector<ext_dynamics::AreaTriangle>& triangles, mps::float32 stiffness);
 
     [[nodiscard]] const std::string& GetName() const override;
     void DeclareSparsity(mps::simulate::SparsityBuilder& builder) override;
@@ -31,13 +31,13 @@ public:
     void Shutdown() override;
 
 private:
-    std::vector<AreaTriangle> triangles_;
-    std::vector<FaceCSRMapping> face_csr_mappings_;
+    std::vector<ext_dynamics::AreaTriangle> triangles_;
+    std::vector<ext_dynamics::FaceCSRMapping> face_csr_mappings_;
     mps::float32 stiffness_;
     mps::uint32 nnz_ = 0;
 
-    std::unique_ptr<mps::gpu::GPUBuffer<AreaTriangle>> triangle_buffer_;
-    std::unique_ptr<mps::gpu::GPUBuffer<FaceCSRMapping>> face_csr_buffer_;
+    std::unique_ptr<mps::gpu::GPUBuffer<ext_dynamics::AreaTriangle>> triangle_buffer_;
+    std::unique_ptr<mps::gpu::GPUBuffer<ext_dynamics::FaceCSRMapping>> face_csr_buffer_;
     std::unique_ptr<mps::gpu::GPUBuffer<AreaParams>> area_params_buffer_;
     mps::gpu::GPUComputePipeline pipeline_;
     mps::gpu::GPUBindGroup bg_area_;
@@ -46,4 +46,4 @@ private:
     static const std::string kName;
 };
 
-}  // namespace ext_dynamics
+}  // namespace ext_newton

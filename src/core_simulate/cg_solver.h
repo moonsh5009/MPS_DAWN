@@ -45,7 +45,8 @@ public:
 
     // Cache all bind groups for the CG loop. Call after Initialize().
     // Also calls spmv.PrepareSolve() with p and ap buffers.
-    void CacheBindGroups(WGPUBuffer params_buffer, uint64 params_size,
+    void CacheBindGroups(WGPUBuffer physics_buffer, uint64 physics_size,
+                         WGPUBuffer params_buffer, uint64 params_size,
                          WGPUBuffer mass_buffer, uint64 mass_size,
                          ISpMVOperator& spmv);
 

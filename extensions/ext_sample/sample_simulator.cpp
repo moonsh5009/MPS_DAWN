@@ -20,7 +20,7 @@ void SampleSimulator::Initialize() {
     LogInfo("SampleSimulator: initialized");
 }
 
-void SampleSimulator::Update(float32 dt) {
+void SampleSimulator::Update() {
     // GPU compute dispatches would go here
 }
 

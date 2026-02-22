@@ -19,7 +19,7 @@ namespace ext_mesh {
 
 MeshResult CreateGrid(Database& db,
                       uint32 width, uint32 height, float32 spacing,
-                      float32 height_offset) {
+                      util::vec3 offset, float32 density) {
     uint32 node_count = width * height;
 
     std::vector<SimPosition> positions(node_count);
@@ -37,9 +37,9 @@ MeshResult CreateGrid(Database& db,
         for (uint32 col = 0; col < width; ++col) {
             uint32 idx = row * width + col;
 
-            positions[idx].x = offset_x + static_cast<float32>(col) * spacing;
-            positions[idx].y = height_offset;
-            positions[idx].z = offset_z + static_cast<float32>(row) * spacing;
+            positions[idx].x = offset_x + static_cast<float32>(col) * spacing + offset.x;
+            positions[idx].y = offset.y;
+            positions[idx].z = offset_z + static_cast<float32>(row) * spacing + offset.z;
             positions[idx].w = 0.0f;
 
             velocities[idx] = {};
@@ -107,7 +107,8 @@ static uint32 ParseVertexIndex(const std::string& token, uint32 vertex_count) {
     return static_cast<uint32>(idx - 1);
 }
 
-MeshResult ImportOBJ(Database& db, const std::string& filepath, float32 scale) {
+MeshResult ImportOBJ(Database& db, const std::string& filepath, float32 scale,
+                     util::vec3 offset, float32 density) {
     MeshResult result;
 
     auto full_path = gpu::ResolveAssetPath("objs/" + filepath);
@@ -131,9 +132,9 @@ MeshResult ImportOBJ(Database& db, const std::string& filepath, float32 scale) {
             float32 x = 0.0f, y = 0.0f, z = 0.0f;
             iss >> x >> y >> z;
             SimPosition pos;
-            pos.x = x * scale;
-            pos.y = y * scale;
-            pos.z = z * scale;
+            pos.x = x * scale + offset.x;
+            pos.y = y * scale + offset.y;
+            pos.z = z * scale + offset.z;
             pos.w = 0.0f;
             positions.push_back(pos);
         } else if (prefix == "f") {
@@ -163,7 +164,6 @@ MeshResult ImportOBJ(Database& db, const std::string& filepath, float32 scale) {
     uint32 face_count = static_cast<uint32>(faces.size());
 
     // Compute area-weighted mass per vertex
-    constexpr float32 surface_density = 100.0f;
     std::vector<SimMass> masses(node_count);
     std::vector<float32> vertex_area(node_count, 0.0f);
 
@@ -187,7 +187,7 @@ MeshResult ImportOBJ(Database& db, const std::string& filepath, float32 scale) {
     }
 
     for (uint32 i = 0; i < node_count; ++i) {
-        float32 m = surface_density * vertex_area[i];
+        float32 m = density * vertex_area[i];
         if (m < 1e-12f) m = 1e-6f;  // prevent zero mass
         masses[i].mass = m;
         masses[i].inv_mass = 1.0f / m;

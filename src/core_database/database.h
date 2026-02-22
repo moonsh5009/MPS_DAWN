@@ -9,10 +9,24 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace mps {
 namespace database {
+
+// Type-erased base for singleton storage
+class ISingletonStorage {
+public:
+    virtual ~ISingletonStorage() = default;
+};
+
+// Typed singleton storage
+template<Component T>
+class SingletonStorage : public ISingletonStorage {
+public:
+    T value{};
+};
 
 // Central ECS database facade.
 // Manages entities, component storage, and undo/redo transactions.
@@ -42,6 +56,16 @@ public:
 
     template<Component T>
     bool HasComponent(Entity entity) const;
+
+    // --- Singleton operations ---
+    template<Component T>
+    void SetSingleton(const T& value);
+
+    template<Component T>
+    const T& GetSingleton() const;
+
+    template<Component T>
+    T& GetSingleton();
 
     // --- Transaction / undo-redo ---
     void Transact(std::function<void()> fn);
@@ -93,6 +117,9 @@ public:
     template<Component T>
     void DirectSetComponent(Entity entity, const T& component);
 
+    template<Component T>
+    void DirectSetSingleton(const T& value);
+
 private:
     // Begin/Commit/Rollback are private — use Transact() publicly
     void BeginTransaction();
@@ -119,10 +146,14 @@ private:
     template<Component T>
     const ArrayStorage<T>* GetArrayStorage() const;
 
+    template<Component T>
+    SingletonStorage<T>& GetOrCreateSingletonStorage();
+
     EntityManager entity_manager_;
     TransactionManager transaction_manager_;
     std::unordered_map<ComponentTypeId, std::unique_ptr<IComponentStorage>> storages_;
     std::unordered_map<ComponentTypeId, std::unique_ptr<IArrayStorage>> array_storages_;
+    std::unordered_map<ComponentTypeId, std::unique_ptr<ISingletonStorage>> singletons_;
 };
 
 // ============================================================================
@@ -304,6 +335,53 @@ void Database::DirectRemoveArray(Entity entity) {
     storage->Remove(entity);
 }
 
+// --- Singleton operations ---
+
+template<Component T>
+SingletonStorage<T>& Database::GetOrCreateSingletonStorage() {
+    ComponentTypeId id = GetComponentTypeId<T>();
+    auto it = singletons_.find(id);
+    if (it == singletons_.end()) {
+        auto storage = std::make_unique<SingletonStorage<T>>();
+        auto* ptr = storage.get();
+        singletons_.emplace(id, std::move(storage));
+        return *ptr;
+    }
+    return *static_cast<SingletonStorage<T>*>(it->second.get());
+}
+
+template<Component T>
+void Database::SetSingleton(const T& value) {
+    auto& storage = GetOrCreateSingletonStorage<T>();
+    T old_value = storage.value;
+    storage.value = value;
+    transaction_manager_.Record(
+        std::make_unique<SetSingletonOp<T>>(old_value, value));
+}
+
+template<Component T>
+const T& Database::GetSingleton() const {
+    ComponentTypeId id = GetComponentTypeId<T>();
+    auto it = singletons_.find(id);
+    if (it == singletons_.end()) {
+        static const T default_value{};
+        return default_value;
+    }
+    return static_cast<const SingletonStorage<T>*>(it->second.get())->value;
+}
+
+template<Component T>
+T& Database::GetSingleton() {
+    auto& storage = GetOrCreateSingletonStorage<T>();
+    return storage.value;
+}
+
+template<Component T>
+void Database::DirectSetSingleton(const T& value) {
+    auto& storage = GetOrCreateSingletonStorage<T>();
+    storage.value = value;
+}
+
 // --- Direct operations (no transaction recording, used by undo/redo) ---
 
 template<Component T>
@@ -358,6 +436,20 @@ void SetComponentOp<T>::Apply(Database& db) {
 template<Component T>
 void SetComponentOp<T>::Revert(Database& db) {
     db.DirectSetComponent<T>(entity_, old_value_);
+}
+
+// ============================================================================
+// Singleton operation template implementations (need full Database definition)
+// ============================================================================
+
+template<Component T>
+void SetSingletonOp<T>::Apply(Database& db) {
+    db.DirectSetSingleton<T>(new_value_);
+}
+
+template<Component T>
+void SetSingletonOp<T>::Revert(Database& db) {
+    db.DirectSetSingleton<T>(old_value_);
 }
 
 // ============================================================================

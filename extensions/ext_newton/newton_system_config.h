@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core_util/types.h"
+#include "core_database/entity.h"
 
 namespace ext_newton {
 
@@ -13,12 +14,12 @@ struct NewtonSystemConfig {
 
     uint32 newton_iterations  = 1;
     uint32 cg_max_iterations  = 30;
-    float32 damping           = 0.999f;
     float32 cg_tolerance      = 1e-6f;
 
     uint32 constraint_count   = 0;
     uint32 constraint_entities[MAX_CONSTRAINTS] = {};
 
+    uint32 mesh_entity        = database::kInvalidEntity;  // kInvalidEntity = global mode, valid entity = scoped
     uint32 padding[3]         = {};
     // Total: 64 bytes
 };

@@ -2,6 +2,7 @@
 #include "core_system/extension.h"
 #include "core_simulate/simulator.h"
 #include "core_simulate/dynamics_term_provider.h"
+#include "core_simulate/projective_term_provider.h"
 #include "core_render/object_renderer.h"
 #include "core_render/render_engine.h"
 #include "core_render/pass/render_pass_builder.h"
@@ -9,7 +10,6 @@
 #include "core_platform/input.h"
 #include "core_gpu/gpu_core.h"
 #include "core_util/logger.h"
-#include "core_util/timer.h"
 #include <webgpu/webgpu.h>
 #include <algorithm>
 #include <cstring>
@@ -109,20 +109,13 @@ void System::Run() {
     // Native: synchronous extensions init + main loop
     InitializeExtensions();
 
-    Timer timer;
-    timer.Start();
-
     LogInfo("Entering main loop... (simulation paused, press Space to start)");
 
     while (!window_->ShouldClose()) {
-        float32 dt = static_cast<float32>(timer.GetElapsedSeconds());
-        timer.Reset();
-        timer.Start();
-        RunFrame(dt);
+        RunFrame();
     }
 #else
     // WASM: async main loop — yields to browser event loop each frame
-    frame_timer_.Start();
     emscripten_set_main_loop_arg(EmscriptenMainLoop, this, 0, true);
     // Does not return (simulates infinite loop)
 #endif
@@ -141,21 +134,16 @@ void System::EmscriptenMainLoop(void* arg) {
         }
         self->FinishGPUInit();
         self->InitializeExtensions();
-        // Reset timer so first real frame gets a reasonable dt (~16ms, not seconds)
-        self->frame_timer_.Reset();
-        self->frame_timer_.Start();
         LogInfo("Entering main loop... (simulation paused, press Space to start)");
         return;
     }
 
-    float32 dt = static_cast<float32>(self->frame_timer_.GetElapsedSeconds());
-    self->frame_timer_.Reset();
-    self->frame_timer_.Start();
-    self->RunFrame(dt);
+    self->RunFrame();
 }
 #endif
 
-void System::RunFrame(float32 dt) {
+void System::RunFrame() {
+    constexpr float32 dt = 1.0f / 60.0f;
     auto& input = platform::InputManager::GetInstance();
     window_->PollEvents();
 
@@ -180,7 +168,7 @@ void System::RunFrame(float32 dt) {
 
     // Update simulators (only when running)
     if (simulation_running_) {
-        UpdateSimulators(dt);
+        UpdateSimulators();
     }
 
     // Update camera and uniforms
@@ -308,6 +296,43 @@ simulate::IDynamicsTermProvider* System::FindTermProvider(database::Entity const
     return nullptr;
 }
 
+void System::RegisterPDTermProvider(database::ComponentTypeId config_type,
+                                     std::unique_ptr<simulate::IProjectiveTermProvider> provider) {
+    LogInfo("PD term provider registered: ", provider->GetTermName());
+    pd_term_providers_.emplace(config_type, std::move(provider));
+}
+
+simulate::IProjectiveTermProvider* System::FindPDTermProvider(database::Entity constraint_entity) const {
+    for (const auto& [type_id, provider] : pd_term_providers_) {
+        if (provider->HasConfig(db_, constraint_entity)) {
+            return provider.get();
+        }
+    }
+    return nullptr;
+}
+
+std::vector<simulate::IDynamicsTermProvider*> System::FindAllTermProviders(
+    database::Entity constraint_entity) const {
+    std::vector<simulate::IDynamicsTermProvider*> result;
+    for (const auto& [type_id, provider] : term_providers_) {
+        if (provider->HasConfig(db_, constraint_entity)) {
+            result.push_back(provider.get());
+        }
+    }
+    return result;
+}
+
+std::vector<simulate::IProjectiveTermProvider*> System::FindAllPDTermProviders(
+    database::Entity constraint_entity) const {
+    std::vector<simulate::IProjectiveTermProvider*> result;
+    for (const auto& [type_id, provider] : pd_term_providers_) {
+        if (provider->HasConfig(db_, constraint_entity)) {
+            result.push_back(provider.get());
+        }
+    }
+    return result;
+}
+
 void System::InitializeExtensions() {
     if (extensions_initialized_) {
         LogError("Extensions already initialized");
@@ -356,9 +381,9 @@ void System::ShutdownExtensions() {
     extensions_initialized_ = false;
 }
 
-void System::UpdateSimulators(float32 dt) {
+void System::UpdateSimulators() {
     for (auto& sim : simulators_) {
-        sim->Update(dt);
+        sim->Update();
     }
 }
 

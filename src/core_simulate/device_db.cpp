@@ -8,6 +8,11 @@ DeviceDB::DeviceDB(Database& host_db)
     : host_db_(host_db) {}
 
 void DeviceDB::Sync() {
+    // 0. Singleton sync (always check — singletons don't have dirty flags)
+    for (auto& [id, entry] : singleton_entries_) {
+        entry->SyncFromHost(host_db_);
+    }
+
     // 1. Component sync
     auto dirty_ids = host_db_.GetDirtyTypeIds();
     for (auto id : dirty_ids) {
@@ -51,6 +56,11 @@ void DeviceDB::Sync() {
 }
 
 void DeviceDB::ForceSync() {
+    // Singletons
+    for (auto& [id, entry] : singleton_entries_) {
+        entry->SyncFromHost(host_db_);
+    }
+
     // Components
     for (auto& [id, entry] : entries_) {
         auto* storage = host_db_.GetStorageById(id);

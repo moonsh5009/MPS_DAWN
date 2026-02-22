@@ -1,8 +1,11 @@
 add_library(ext_newton STATIC
     newton_extension.cpp
     newton_system_simulator.cpp
-    gravity_term_provider.cpp
     newton_dynamics.cpp
+    spring_term.cpp
+    spring_term_provider.cpp
+    area_term.cpp
+    area_term_provider.cpp
 )
 
 set_target_properties(ext_newton PROPERTIES

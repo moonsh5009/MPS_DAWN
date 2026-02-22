@@ -116,7 +116,8 @@ WGPUBuffer CGSolver::GetRHSBuffer() const { return cg_r_ ? cg_r_->GetHandle() : 
 WGPUBuffer CGSolver::GetSolutionBuffer() const { return cg_x_ ? cg_x_->GetHandle() : nullptr; }
 uint64 CGSolver::GetVectorSize() const { return uint64(node_count_) * 4 * sizeof(float32); }
 
-void CGSolver::CacheBindGroups(WGPUBuffer params_buffer, uint64 params_size,
+void CGSolver::CacheBindGroups(WGPUBuffer physics_buffer, uint64 physics_size,
+                               WGPUBuffer params_buffer, uint64 params_size,
                                WGPUBuffer mass_buffer, uint64 mass_size,
                                ISpMVOperator& spmv) {
     uint64 vec_sz = GetVectorSize();
@@ -131,13 +132,16 @@ void CGSolver::CacheBindGroups(WGPUBuffer params_buffer, uint64 params_size,
     WGPUBuffer scalar_h = scalar_->GetHandle();
 
     bg_init_ = MakeBG(cg_init_pipeline_, "bg_cg_init",
-        {{0, {params_buffer, params_size}}, {1, {x_h, vec_sz}}, {2, {r_h, vec_sz}}, {3, {p_h, vec_sz}}});
+        {{0, {params_buffer, params_size}},
+         {1, {x_h, vec_sz}}, {2, {r_h, vec_sz}}, {3, {p_h, vec_sz}}});
 
     bg_dot_rr_ = MakeBG(cg_dot_pipeline_, "bg_dot_rr",
-        {{0, {params_buffer, params_size}}, {1, {r_h, vec_sz}}, {2, {r_h, vec_sz}}, {3, {partial_h, partial_sz}}});
+        {{0, {params_buffer, params_size}},
+         {1, {r_h, vec_sz}}, {2, {r_h, vec_sz}}, {3, {partial_h, partial_sz}}});
 
     bg_dot_pap_ = MakeBG(cg_dot_pipeline_, "bg_dot_pap",
-        {{0, {params_buffer, params_size}}, {1, {p_h, vec_sz}}, {2, {ap_h, vec_sz}}, {3, {partial_h, partial_sz}}});
+        {{0, {params_buffer, params_size}},
+         {1, {p_h, vec_sz}}, {2, {ap_h, vec_sz}}, {3, {partial_h, partial_sz}}});
 
     bg_df_rr_ = MakeBG(cg_dot_final_pipeline_, "bg_df_rr",
         {{0, {partial_h, partial_sz}}, {1, {scalar_h, scalar_sz}}, {2, {dc_rr_->GetHandle(), sizeof(DotConfig)}}});
@@ -152,12 +156,14 @@ void CGSolver::CacheBindGroups(WGPUBuffer params_buffer, uint64 params_size,
         {{0, {scalar_h, scalar_sz}}, {1, {mode_beta_->GetHandle(), sizeof(ScalarMode)}}});
 
     bg_xr_ = MakeBG(cg_update_xr_pipeline_, "bg_xr",
-        {{0, {params_buffer, params_size}}, {1, {x_h, vec_sz}}, {2, {r_h, vec_sz}},
+        {{0, {params_buffer, params_size}},
+         {1, {x_h, vec_sz}}, {2, {r_h, vec_sz}},
          {3, {p_h, vec_sz}}, {4, {ap_h, vec_sz}}, {5, {scalar_h, scalar_sz}},
          {6, {mass_buffer, mass_size}}});
 
     bg_p_ = MakeBG(cg_update_p_pipeline_, "bg_p",
-        {{0, {params_buffer, params_size}}, {1, {r_h, vec_sz}}, {2, {p_h, vec_sz}},
+        {{0, {params_buffer, params_size}},
+         {1, {r_h, vec_sz}}, {2, {p_h, vec_sz}},
          {3, {scalar_h, scalar_sz}}, {4, {mass_buffer, mass_size}}});
 
     // Prepare SpMV operator with CG buffers and cache pointer

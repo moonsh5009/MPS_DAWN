@@ -15,18 +15,20 @@ namespace simulate {
 
 // Context passed to terms during Initialize for bind group caching
 struct AssemblyContext {
+    WGPUBuffer physics_buffer;      // global physics params uniform (binding 0)
     WGPUBuffer position_buffer;     // predicted positions (read)
     WGPUBuffer velocity_buffer;     // current velocities (read)
     WGPUBuffer mass_buffer;         // mass data (read)
     WGPUBuffer force_buffer;        // RHS force vector (atomic u32, read_write)
     WGPUBuffer diag_buffer;         // A diagonal 3x3 blocks (atomic u32 for springs, read_write)
     WGPUBuffer csr_values_buffer;   // A off-diagonal 3x3 blocks (read_write)
-    WGPUBuffer params_buffer;       // system params uniform (read)
+    WGPUBuffer params_buffer;       // solver params uniform (binding 1)
     WGPUBuffer dv_total_buffer;     // accumulated velocity delta (read)
     uint32 node_count;
     uint32 edge_count;
     uint32 workgroup_size;
-    uint64 params_size;         // size of params buffer in bytes (48 for DynamicsParams)
+    uint64 physics_size;        // size of physics buffer in bytes
+    uint64 params_size;         // size of solver params buffer in bytes
 };
 
 // Builds CSR sparsity pattern from declared edges

@@ -2,6 +2,7 @@
 
 #include "core_database/entity.h"
 #include "core_util/types.h"
+#include "core_util/math.h"
 #include <string>
 #include <vector>
 
@@ -20,14 +21,18 @@ struct MeshResult {
 // Must be called inside a Transact block.
 MeshResult CreateGrid(mps::database::Database& db,
                       mps::uint32 width, mps::uint32 height, mps::float32 spacing,
-                      mps::float32 height_offset = 3.0f);
+                      mps::util::vec3 offset, mps::float32 density = 100.0f);
 
 // Import a triangle mesh from OBJ file (filename relative to assets/objs/).
 // Adds SimPosition, SimVelocity, SimMass (area-weighted), MeshFace, MeshComponent.
 // Quads are automatically triangulated. Must be called inside a Transact block.
+// offset: translation applied to all vertices after scaling.
+// density: surface density (kg/m²) for area-weighted mass computation.
 MeshResult ImportOBJ(mps::database::Database& db,
                      const std::string& filename,
-                     mps::float32 scale = 1.0f);
+                     mps::float32 scale = 1.0f,
+                     mps::util::vec3 offset = {0.0f, 0.0f, 0.0f},
+                     mps::float32 density = 100.0f);
 
 // Pin vertices on a mesh entity.
 // Appends to FixedVertex array (saving original mass) and sets mass=9999999, inv_mass=0.

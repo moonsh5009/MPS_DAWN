@@ -270,6 +270,11 @@ bool GPUCore::RequestDevice() {
     desc.uncapturedErrorCallbackInfo.callback = Callbacks::OnDeviceError;
     desc.uncapturedErrorCallbackInfo.userdata1 = this;
 
+    // Request adapter's maximum limits (default tier is too restrictive for fused compute shaders)
+    WGPULimits adapter_limits = WGPU_LIMITS_INIT;
+    wgpuAdapterGetLimits(adapter_, &adapter_limits);
+    desc.requiredLimits = &adapter_limits;
+
     WGPURequestDeviceCallbackInfo cb = WGPU_REQUEST_DEVICE_CALLBACK_INFO_INIT;
 #ifdef __EMSCRIPTEN__
     cb.mode = WGPUCallbackMode_AllowProcessEvents;

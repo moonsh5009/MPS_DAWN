@@ -77,7 +77,7 @@ void NewtonDynamics::SpMVOperator::PrepareSolve(
     uint64 diag_sz = uint64(owner_.node_count_) * 9 * sizeof(float32);
 
     bind_group_ = MakeBG(owner_.spmv_pipeline_, "bg_spmv",
-        {{0, {owner_.params_buffer_->GetHandle(), sizeof(DynamicsParams)}},
+        {{0, {owner_.params_buffer_->GetHandle(), sizeof(SolverParams)}},
          {1, {p_buffer, p_size}},
          {2, {ap_buffer, ap_size}},
          {3, {owner_.csr_row_ptr_buffer_->GetHandle(), row_ptr_sz}},
@@ -103,6 +103,7 @@ void NewtonDynamics::AddTerm(std::unique_ptr<IDynamicsTerm> term) {
 }
 
 void NewtonDynamics::Initialize(uint32 node_count, uint32 edge_count, uint32 face_count,
+                                 WGPUBuffer physics_buffer, uint64 physics_size,
                                  WGPUBuffer position_buffer, WGPUBuffer velocity_buffer,
                                  WGPUBuffer mass_buffer, uint32 workgroup_size) {
     node_count_ = node_count;
@@ -110,6 +111,8 @@ void NewtonDynamics::Initialize(uint32 node_count, uint32 edge_count, uint32 fac
     face_count_ = face_count;
     workgroup_size_ = workgroup_size;
     node_wg_count_ = (node_count + workgroup_size - 1) / workgroup_size;
+    physics_buffer_ = physics_buffer;
+    physics_size_ = physics_size;
 
     BuildSparsity();
     CreateBuffers();
@@ -124,6 +127,8 @@ void NewtonDynamics::Initialize(uint32 node_count, uint32 edge_count, uint32 fac
 
     // Build AssemblyContext for term bind group caching
     AssemblyContext ctx{};
+    ctx.physics_buffer = physics_buffer;
+    ctx.physics_size = physics_size;
     ctx.position_buffer = position_buffer;
     ctx.velocity_buffer = velocity_buffer;
     ctx.mass_buffer = mass_buffer;
@@ -135,7 +140,7 @@ void NewtonDynamics::Initialize(uint32 node_count, uint32 edge_count, uint32 fac
     ctx.node_count = node_count;
     ctx.edge_count = edge_count;
     ctx.workgroup_size = workgroup_size;
-    ctx.params_size = sizeof(DynamicsParams);
+    ctx.params_size = sizeof(SolverParams);
 
     // Initialize terms with context for bind group caching
     for (auto& term : terms_) {
@@ -164,12 +169,12 @@ void NewtonDynamics::CreateBuffers() {
     auto srw = BufferUsage::Storage | BufferUsage::CopyDst | BufferUsage::CopySrc;
     uint64 vec_sz = uint64(node_count_) * 4 * sizeof(float32);
 
-    // Params uniform
+    // Solver params uniform
     params_.node_count = node_count_;
     params_.edge_count = edge_count_;
     params_.face_count = face_count_;
-    params_buffer_ = std::make_unique<GPUBuffer<DynamicsParams>>(
-        BufferUsage::Uniform, std::span<const DynamicsParams>(&params_, 1), "dynamics_params");
+    params_buffer_ = std::make_unique<GPUBuffer<SolverParams>>(
+        BufferUsage::Uniform, std::span<const SolverParams>(&params_, 1), "solver_params");
 
     // CSR structure (ensure minimum 4 bytes so GPU buffers are always valid)
     const auto& row_ptr = sparsity_->GetRowPtr();
@@ -206,16 +211,20 @@ void NewtonDynamics::CreatePipelines() {
     clear_forces_pipeline_ = MakePipeline("clear_forces.wgsl", "clear_forces");
     assemble_rhs_pipeline_ = MakePipeline("assemble_rhs.wgsl", "assemble_rhs");
     spmv_pipeline_ = MakePipeline("cg_spmv.wgsl", "cg_spmv");
+    inertia_pipeline_ = MakePipeline("inertia_assemble.wgsl", "inertia_assemble");
+    gravity_pipeline_ = MakePipeline("accumulate_gravity.wgsl", "accumulate_gravity");
 }
 
 void NewtonDynamics::CacheBindGroups(WGPUBuffer position_buffer,
                                      WGPUBuffer velocity_buffer,
                                      WGPUBuffer mass_buffer) {
-    uint64 params_sz = sizeof(DynamicsParams);
+    uint64 params_sz = sizeof(SolverParams);
     uint64 vec_sz = uint64(node_count_) * 4 * sizeof(float32);
     uint64 mass_sz = uint64(node_count_) * sizeof(simulate::SimMass);
     uint64 force_sz = uint64(node_count_) * 4 * sizeof(int32);
 
+    WGPUBuffer phys_h = physics_buffer_;
+    uint64 phys_sz = physics_size_;
     WGPUBuffer params_h = params_buffer_->GetHandle();
     WGPUBuffer force_h = force_buffer_->GetHandle();
     WGPUBuffer x_old_h = x_old_buffer_->GetHandle();
@@ -225,45 +234,53 @@ void NewtonDynamics::CacheBindGroups(WGPUBuffer position_buffer,
 
     // Newton init bind group
     bg_newton_init_ = MakeBG(newton_init_pipeline_, "bg_newton_init",
-        {{0, {params_h, params_sz}}, {1, {position_buffer, vec_sz}},
+        {{0, {params_h, params_sz}},
+         {1, {position_buffer, vec_sz}},
          {2, {x_old_h, vec_sz}}, {3, {dv_total_h, vec_sz}}});
 
     // Predict positions bind group
     bg_predict_ = MakeBG(newton_predict_pos_pipeline_, "bg_predict",
-        {{0, {params_h, params_sz}}, {1, {position_buffer, vec_sz}},
-         {2, {x_old_h, vec_sz}}, {3, {velocity_buffer, vec_sz}},
-         {4, {dv_total_h, vec_sz}}, {5, {mass_buffer, mass_sz}}});
+        {{0, {phys_h, phys_sz}}, {1, {params_h, params_sz}},
+         {2, {position_buffer, vec_sz}},
+         {3, {x_old_h, vec_sz}}, {4, {velocity_buffer, vec_sz}},
+         {5, {dv_total_h, vec_sz}}, {6, {mass_buffer, mass_sz}}});
 
     // Clear forces bind group
     bg_clear_forces_ = MakeBG(clear_forces_pipeline_, "bg_clear_f",
-        {{0, {params_h, params_sz}}, {1, {force_h, force_sz}}});
+        {{0, {params_h, params_sz}},
+         {1, {force_h, force_sz}}});
 
     // Assemble RHS bind group
     bg_rhs_ = MakeBG(assemble_rhs_pipeline_, "bg_rhs",
-        {{0, {params_h, params_sz}}, {1, {force_h, force_sz}},
-         {2, {dv_total_h, vec_sz}}, {3, {mass_buffer, mass_sz}},
-         {4, {rhs_h, vec_sz}}});
+        {{0, {phys_h, phys_sz}}, {1, {params_h, params_sz}},
+         {2, {force_h, force_sz}},
+         {3, {dv_total_h, vec_sz}}, {4, {mass_buffer, mass_sz}},
+         {5, {rhs_h, vec_sz}}});
 
     // Accumulate dv bind group
     bg_accumulate_ = MakeBG(newton_accumulate_dv_pipeline_, "bg_accum_dv",
-        {{0, {params_h, params_sz}}, {1, {dv_total_h, vec_sz}},
+        {{0, {params_h, params_sz}},
+         {1, {dv_total_h, vec_sz}},
          {2, {cg_x_h, vec_sz}}});
 
+    // Inertia: diag += M * I3x3
+    uint64 diag_sz = uint64(node_count_) * 9 * sizeof(float32);
+    bg_inertia_ = MakeBG(inertia_pipeline_, "bg_inertia",
+        {{0, {params_h, params_sz}},
+         {1, {diag_values_buffer_->GetHandle(), diag_sz}},
+         {2, {mass_buffer, mass_sz}}});
+
+    // Gravity: force += M * g
+    bg_gravity_ = MakeBG(gravity_pipeline_, "bg_gravity",
+        {{0, {phys_h, phys_sz}}, {1, {params_h, params_sz}},
+         {2, {force_h, force_sz}},
+         {3, {mass_buffer, mass_sz}}});
+
     // Cache CG solver bind groups
-    cg_solver_->CacheBindGroups(params_h, params_sz, mass_buffer, mass_sz, *spmv_);
+    cg_solver_->CacheBindGroups(phys_h, phys_sz, params_h, params_sz, mass_buffer, mass_sz, *spmv_);
 }
 
-void NewtonDynamics::Solve(WGPUCommandEncoder encoder, float32 dt,
-                           uint32 newton_iterations,
-                           uint32 cg_iterations) {
-    // Clamp dt
-    dt = std::min(dt, 1.0f / 30.0f);
-
-    // Update params
-    params_.dt = dt;
-    params_.cg_max_iter = cg_iterations;
-    params_buffer_->WriteData(std::span<const DynamicsParams>(&params_, 1));
-
+void NewtonDynamics::Solve(WGPUCommandEncoder encoder) {
     uint64 diag_sz = uint64(node_count_) * 9 * sizeof(float32);
     uint64 csr_val_sz = uint64(nnz_) * 9 * sizeof(float32);
     WGPUBuffer diag_h = diag_values_buffer_->GetHandle();
@@ -272,7 +289,7 @@ void NewtonDynamics::Solve(WGPUCommandEncoder encoder, float32 dt,
     Dispatch(encoder, newton_init_pipeline_, bg_newton_init_, node_wg_count_);
 
     // ---- Newton Outer Loop ----
-    for (uint32 nit = 0; nit < newton_iterations; ++nit) {
+    for (uint32 nit = 0; nit < newton_iterations_; ++nit) {
         // Predict positions: x_temp = x_old + dt*(v + dv_total)
         Dispatch(encoder, newton_predict_pos_pipeline_, bg_predict_, node_wg_count_);
 
@@ -287,6 +304,12 @@ void NewtonDynamics::Solve(WGPUCommandEncoder encoder, float32 dt,
             wgpuCommandEncoderClearBuffer(encoder, csr_values_buffer_->GetHandle(), 0, csr_val_sz);
         }
 
+        // Inertial contribution: diag += M * I3x3 (hardcoded, always required)
+        Dispatch(encoder, inertia_pipeline_, bg_inertia_, node_wg_count_);
+
+        // Gravity: force += M * g (hardcoded, always required)
+        Dispatch(encoder, gravity_pipeline_, bg_gravity_, node_wg_count_);
+
         // Assemble contributions from all terms (using cached bind groups)
         for (auto& term : terms_) {
             term->Assemble(encoder);
@@ -296,17 +319,11 @@ void NewtonDynamics::Solve(WGPUCommandEncoder encoder, float32 dt,
         Dispatch(encoder, assemble_rhs_pipeline_, bg_rhs_, node_wg_count_);
 
         // CG Solve (uses cached bind groups)
-        cg_solver_->Solve(encoder, cg_iterations);
+        cg_solver_->Solve(encoder, cg_max_iterations_);
 
         // Accumulate CG solution: dv_total += cg_x
         Dispatch(encoder, newton_accumulate_dv_pipeline_, bg_accumulate_, node_wg_count_);
     }
-}
-
-void NewtonDynamics::SetGravity(float32 gx, float32 gy, float32 gz) {
-    params_.gravity_x = gx;
-    params_.gravity_y = gy;
-    params_.gravity_z = gz;
 }
 
 WGPUBuffer NewtonDynamics::GetDVTotalBuffer() const {
@@ -322,7 +339,7 @@ WGPUBuffer NewtonDynamics::GetParamsBuffer() const {
 }
 
 uint64 NewtonDynamics::GetParamsSize() const {
-    return sizeof(DynamicsParams);
+    return sizeof(SolverParams);
 }
 
 uint64 NewtonDynamics::GetVec4BufferSize() const {
@@ -345,6 +362,8 @@ void NewtonDynamics::Shutdown() {
     bg_clear_forces_ = {};
     bg_rhs_ = {};
     bg_accumulate_ = {};
+    bg_inertia_ = {};
+    bg_gravity_ = {};
 
     newton_init_pipeline_ = {};
     newton_predict_pos_pipeline_ = {};
@@ -352,6 +371,8 @@ void NewtonDynamics::Shutdown() {
     clear_forces_pipeline_ = {};
     assemble_rhs_pipeline_ = {};
     spmv_pipeline_ = {};
+    inertia_pipeline_ = {};
+    gravity_pipeline_ = {};
 
     params_buffer_.reset();
     csr_row_ptr_buffer_.reset();

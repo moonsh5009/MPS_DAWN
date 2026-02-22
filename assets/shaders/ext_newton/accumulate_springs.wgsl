@@ -15,7 +15,11 @@
 // edge_csr_mapping[e] = vec4u(csr_idx_ab, csr_idx_ba, diag_a, diag_b)
 
 #import "core_simulate/header/solver_params.wgsl"
+#import "core_simulate/header/physics_params.wgsl"
 #import "core_simulate/header/atomic_float.wgsl"
+
+@group(0) @binding(0) var<uniform> physics: PhysicsParams;
+@group(0) @binding(1) var<uniform> solver: SolverParams;
 
 struct SpringEdge {
     n0: u32,
@@ -30,18 +34,18 @@ struct SpringParams {
     _pad2: f32,
 };
 
-@group(0) @binding(1) var<storage, read> positions: array<vec4f>;
-@group(0) @binding(2) var<storage, read_write> forces: array<atomic<u32>>;
-@group(0) @binding(3) var<storage, read> edges: array<SpringEdge>;
-@group(0) @binding(4) var<storage, read_write> csr_values: array<atomic<u32>>;
-@group(0) @binding(5) var<storage, read_write> diag_values: array<atomic<u32>>;
-@group(0) @binding(6) var<storage, read> edge_csr_map: array<vec4u>;
-@group(0) @binding(7) var<uniform> spring_params: SpringParams;
+@group(0) @binding(2) var<storage, read> positions: array<vec4f>;
+@group(0) @binding(3) var<storage, read_write> forces: array<atomic<u32>>;
+@group(0) @binding(4) var<storage, read> edges: array<SpringEdge>;
+@group(0) @binding(5) var<storage, read_write> csr_values: array<atomic<u32>>;
+@group(0) @binding(6) var<storage, read_write> diag_values: array<atomic<u32>>;
+@group(0) @binding(7) var<storage, read> edge_csr_map: array<vec4u>;
+@group(0) @binding(8) var<uniform> spring_params: SpringParams;
 
 @compute @workgroup_size(64)
 fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
     let eid = gid.x;
-    if (eid >= params.edge_count) {
+    if (eid >= solver.edge_count) {
         return;
     }
 
@@ -104,7 +108,7 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
     // System matrix A = M - dt²*J, so:
     //   offdiag A_ab = -dt²*J_ab = -dt²*h
     //   diagonal contribution = +dt²*J_ab = +dt²*h (since self-Jacobian = -J_ab)
-    let dt2 = params.dt * params.dt;
+    let dt2 = physics.dt_sq;
 
     // Write off-diagonal CSR blocks (symmetric: H_ab = H_ba)
     // Uses atomicAddFloat to accumulate with other terms (e.g. area) sharing CSR entries.

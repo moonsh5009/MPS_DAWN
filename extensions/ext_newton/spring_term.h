@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace ext_dynamics {
+namespace ext_newton {
 
 // GPU-side parameters for spring stiffness (16 bytes, uniform-compatible)
 struct alignas(16) SpringParams {
@@ -17,7 +17,7 @@ struct alignas(16) SpringParams {
 
 class SpringTerm : public mps::simulate::IDynamicsTerm {
 public:
-    SpringTerm(const std::vector<SpringEdge>& edges, mps::float32 stiffness);
+    SpringTerm(const std::vector<ext_dynamics::SpringEdge>& edges, mps::float32 stiffness);
 
     [[nodiscard]] const std::string& GetName() const override;
     void DeclareSparsity(mps::simulate::SparsityBuilder& builder) override;
@@ -27,13 +27,13 @@ public:
     void Shutdown() override;
 
 private:
-    std::vector<SpringEdge> edges_;
-    std::vector<EdgeCSRMapping> edge_csr_mappings_;
+    std::vector<ext_dynamics::SpringEdge> edges_;
+    std::vector<ext_dynamics::EdgeCSRMapping> edge_csr_mappings_;
     mps::float32 stiffness_;
     mps::uint32 nnz_ = 0;
 
-    std::unique_ptr<mps::gpu::GPUBuffer<SpringEdge>> edge_buffer_;
-    std::unique_ptr<mps::gpu::GPUBuffer<EdgeCSRMapping>> edge_csr_buffer_;
+    std::unique_ptr<mps::gpu::GPUBuffer<ext_dynamics::SpringEdge>> edge_buffer_;
+    std::unique_ptr<mps::gpu::GPUBuffer<ext_dynamics::EdgeCSRMapping>> edge_csr_buffer_;
     std::unique_ptr<mps::gpu::GPUBuffer<SpringParams>> spring_params_buffer_;
     mps::gpu::GPUComputePipeline pipeline_;
     mps::gpu::GPUBindGroup bg_springs_;
@@ -42,4 +42,4 @@ private:
     static const std::string kName;
 };
 
-}  // namespace ext_dynamics
+}  // namespace ext_newton

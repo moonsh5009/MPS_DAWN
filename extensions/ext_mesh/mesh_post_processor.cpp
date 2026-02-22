@@ -96,7 +96,7 @@ void MeshPostProcessor::Initialize() {
     LogInfo("MeshPostProcessor: initialized (", node_count_, " nodes, ", total_face_count_, " faces)");
 }
 
-void MeshPostProcessor::Update(float32 /* dt */) {
+void MeshPostProcessor::Update() {
     if (!initialized_) return;
 
     WGPUBuffer pos_h = system_.GetDeviceBuffer<SimPosition>();

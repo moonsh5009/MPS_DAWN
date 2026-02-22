@@ -6,17 +6,21 @@
 // Forces are f32 (accumulated via CAS-based atomic float add).
 
 #import "core_simulate/header/solver_params.wgsl"
+#import "core_simulate/header/physics_params.wgsl"
 #import "core_simulate/header/sim_mass.wgsl"
 
-@group(0) @binding(1) var<storage, read> forces: array<f32>;
-@group(0) @binding(2) var<storage, read> dv_total: array<vec4f>;
-@group(0) @binding(3) var<storage, read> mass: array<SimMass>;
-@group(0) @binding(4) var<storage, read_write> rhs: array<vec4f>;
+@group(0) @binding(0) var<uniform> physics: PhysicsParams;
+@group(0) @binding(1) var<uniform> solver: SolverParams;
+
+@group(0) @binding(2) var<storage, read> forces: array<f32>;
+@group(0) @binding(3) var<storage, read> dv_total: array<vec4f>;
+@group(0) @binding(4) var<storage, read> mass: array<SimMass>;
+@group(0) @binding(5) var<storage, read_write> rhs: array<vec4f>;
 
 @compute @workgroup_size(64)
 fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
     let id = gid.x;
-    if (id >= params.node_count) {
+    if (id >= solver.node_count) {
         return;
     }
 
@@ -35,7 +39,7 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3u) {
     let dv = dv_total[id].xyz;
 
     // b = dt * F - M * dv_total
-    let b = params.dt * f - m * dv;
+    let b = physics.dt * f - m * dv;
 
     rhs[id] = vec4f(b, 0.0);
 }

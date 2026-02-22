@@ -1,4 +1,4 @@
-#include "ext_dynamics/spring_term.h"
+#include "ext_newton/spring_term.h"
 #include "core_gpu/gpu_core.h"
 #include "core_gpu/shader_loader.h"
 #include "core_gpu/bind_group_builder.h"
@@ -11,7 +11,10 @@ using namespace mps;
 using namespace mps::util;
 using namespace mps::gpu;
 
-namespace ext_dynamics {
+using ext_dynamics::SpringEdge;
+using ext_dynamics::EdgeCSRMapping;
+
+namespace ext_newton {
 
 const std::string SpringTerm::kName = "SpringTerm";
 
@@ -54,7 +57,7 @@ void SpringTerm::Initialize(const simulate::SparsityBuilder& sparsity, const sim
         BufferUsage::Uniform, std::span<const SpringParams>(&params, 1), "spring_params");
 
     // Create pipeline
-    auto shader = ShaderLoader::CreateModule("ext_dynamics/accumulate_springs.wgsl", "accumulate_springs");
+    auto shader = ShaderLoader::CreateModule("ext_newton/accumulate_springs.wgsl", "accumulate_springs");
     WGPUComputePipelineDescriptor desc = WGPU_COMPUTE_PIPELINE_DESCRIPTOR_INIT;
     std::string label = "accumulate_springs";
     desc.label = {label.data(), label.size()};
@@ -74,14 +77,15 @@ void SpringTerm::Initialize(const simulate::SparsityBuilder& sparsity, const sim
 
     auto bgl = wgpuComputePipelineGetBindGroupLayout(pipeline_.GetHandle(), 0);
     bg_springs_ = BindGroupBuilder("bg_springs")
-        .AddBuffer(0, ctx.params_buffer, ctx.params_size)
-        .AddBuffer(1, ctx.position_buffer, pos_sz)
-        .AddBuffer(2, ctx.force_buffer, force_sz)
-        .AddBuffer(3, edge_buffer_->GetHandle(), edge_sz)
-        .AddBuffer(4, ctx.csr_values_buffer, csr_val_sz)
-        .AddBuffer(5, ctx.diag_buffer, diag_sz)
-        .AddBuffer(6, edge_csr_buffer_->GetHandle(), csr_map_sz)
-        .AddBuffer(7, spring_params_buffer_->GetHandle(), sizeof(SpringParams))
+        .AddBuffer(0, ctx.physics_buffer, ctx.physics_size)
+        .AddBuffer(1, ctx.params_buffer, ctx.params_size)
+        .AddBuffer(2, ctx.position_buffer, pos_sz)
+        .AddBuffer(3, ctx.force_buffer, force_sz)
+        .AddBuffer(4, edge_buffer_->GetHandle(), edge_sz)
+        .AddBuffer(5, ctx.csr_values_buffer, csr_val_sz)
+        .AddBuffer(6, ctx.diag_buffer, diag_sz)
+        .AddBuffer(7, edge_csr_buffer_->GetHandle(), csr_map_sz)
+        .AddBuffer(8, spring_params_buffer_->GetHandle(), sizeof(SpringParams))
         .Build(bgl);
     wgpuBindGroupLayoutRelease(bgl);
 
@@ -110,4 +114,4 @@ void SpringTerm::Shutdown() {
     LogInfo("SpringTerm: shutdown");
 }
 
-}  // namespace ext_dynamics
+}  // namespace ext_newton

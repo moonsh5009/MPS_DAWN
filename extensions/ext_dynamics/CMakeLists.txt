@@ -1,12 +1,6 @@
 add_library(ext_dynamics STATIC
     dynamics_extension.cpp
     constraint_builder.cpp
-    spring_term.cpp
-    spring_term_provider.cpp
-    area_term.cpp
-    area_term_provider.cpp
-    inertial_term.cpp
-    gravity_term.cpp
 )
 
 set_target_properties(ext_dynamics PROPERTIES
