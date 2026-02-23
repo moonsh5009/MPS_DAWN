@@ -43,10 +43,6 @@ target_link_libraries(mps_dawn PRIVATE
     mps::ext_newton
     mps::ext_mesh
     mps::ext_dynamics
-    mps::ext_pd_term
-    mps::ext_chebyshev_pd
-    mps::ext_admm_pd
-    mps::ext_jgs2
 )
 
 # Asset file handling
