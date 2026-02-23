@@ -14,19 +14,23 @@ namespace simulate {
 inline constexpr bool kEnableSimulationProfiling = true;
 
 // Wait for all previously submitted GPU work to complete.
-// Uses wgpuQueueOnSubmittedWorkDone + WaitAny (native) or ProcessEvents (WASM).
+// Native: uses wgpuQueueOnSubmittedWorkDone + WaitAny (synchronous).
+// WASM: no-op — synchronous GPU waits deadlock because ProcessEvents()
+// busy-wait prevents JS promises from resolving. Callers must not rely
+// on this for correctness on WASM; use asynchronous patterns instead.
 inline void WaitForGPU() {
+#ifdef __EMSCRIPTEN__
+    // Cannot synchronously wait on WASM — JS event loop must run for
+    // GPU callbacks to fire. This is intentionally a no-op.
+    return;
+#else
     auto& gpu = gpu::GPUCore::GetInstance();
 
     struct Ctx { bool done = false; };
     Ctx ctx;
 
     WGPUQueueWorkDoneCallbackInfo cb = WGPU_QUEUE_WORK_DONE_CALLBACK_INFO_INIT;
-#ifdef __EMSCRIPTEN__
-    cb.mode = WGPUCallbackMode_AllowProcessEvents;
-#else
     cb.mode = WGPUCallbackMode_WaitAnyOnly;
-#endif
     cb.callback = [](WGPUQueueWorkDoneStatus, WGPUStringView, void* ud1, void*) {
         static_cast<Ctx*>(ud1)->done = true;
     };
@@ -34,12 +38,9 @@ inline void WaitForGPU() {
 
     WGPUFuture future = wgpuQueueOnSubmittedWorkDone(gpu.GetQueue(), cb);
 
-#ifndef __EMSCRIPTEN__
     WGPUFutureWaitInfo wait = WGPU_FUTURE_WAIT_INFO_INIT;
     wait.future = future;
     wgpuInstanceWaitAny(gpu.GetWGPUInstance(), 1, &wait, UINT64_MAX);
-#else
-    while (!ctx.done) gpu.ProcessEvents();
 #endif
 }
 

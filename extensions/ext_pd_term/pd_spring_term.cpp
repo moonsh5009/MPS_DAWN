@@ -132,6 +132,10 @@ void PDSpringTerm::AssembleLHS(WGPUCommandEncoder encoder) {
     Dispatch(encoder, lhs_pipeline_, bg_lhs_, wg_count_);
 }
 
+void PDSpringTerm::AssembleADMMLHS(WGPUCommandEncoder encoder) {
+    Dispatch(encoder, lhs_pipeline_, bg_admm_lhs_, wg_count_);
+}
+
 void PDSpringTerm::ProjectRHS(WGPUCommandEncoder encoder) {
     Dispatch(encoder, project_rhs_pipeline_, bg_project_rhs_, wg_count_);
 }
@@ -146,6 +150,22 @@ void PDSpringTerm::InitializeADMM(const PDAssemblyContext& ctx) {
     u_buffer_ = std::make_unique<GPUBuffer<float32>>(
         BufferConfig{.usage = srw, .size = zu_sz, .label = "admm_spring_u"});
 
+    // ADMM penalty params: ρ stored as "stiffness" so LHS/RHS shaders work unchanged
+    float32 rho = ctx.penalty_weight > 0.0f ? ctx.penalty_weight : stiffness_;
+    SpringParams penalty_params;
+    penalty_params.stiffness = rho;
+    admm_penalty_params_buffer_ = std::make_unique<GPUBuffer<SpringParams>>(
+        BufferUsage::Uniform, std::span<const SpringParams>(&penalty_params, 1),
+        "admm_spring_penalty_params");
+
+    // ADMM projection params: both ρ and k for the proximal operator
+    ADMMSpringParams admm_params;
+    admm_params.penalty_weight = rho;
+    admm_params.stiffness = stiffness_;
+    admm_spring_params_buffer_ = std::make_unique<GPUBuffer<ADMMSpringParams>>(
+        BufferUsage::Uniform, std::span<const ADMMSpringParams>(&admm_params, 1),
+        "admm_spring_prox_params");
+
     // Create ADMM pipelines
     admm_project_pipeline_ = MakePipeline("ext_pd_term/", "admm_spring_project.wgsl", "admm_spring_project");
     admm_rhs_pipeline_ = MakePipeline("ext_pd_term/", "admm_spring_rhs.wgsl", "admm_spring_rhs");
@@ -154,24 +174,39 @@ void PDSpringTerm::InitializeADMM(const PDAssemblyContext& ctx) {
 
     // Cache ADMM bind groups
     uint64 edge_sz = uint64(E) * sizeof(SpringEdge);
+    uint64 csr_map_sz = uint64(E) * sizeof(EdgeCSRMapping);
     uint64 q_sz = uint64(ctx.node_count) * 4 * sizeof(float32);
     uint64 rhs_sz = uint64(ctx.node_count) * 4 * sizeof(uint32);
     uint64 s_sz = uint64(ctx.node_count) * 4 * sizeof(float32);
+    uint64 diag_sz = uint64(ctx.node_count) * 9 * sizeof(float32);
+    uint64 csr_val_sz = uint64(nnz_) * 9 * sizeof(float32);
 
+    // ADMM LHS: same as Chebyshev LHS but uses ρ (not k)
+    bg_admm_lhs_ = MakeBG(lhs_pipeline_, "bg_admm_spring_lhs",
+        {{0, {ctx.params_buffer, ctx.params_size}},
+         {1, {edge_buffer_->GetHandle(), edge_sz}},
+         {2, {ctx.diag_buffer, diag_sz}},
+         {3, {ctx.csr_values_buffer, std::max(csr_val_sz, uint64(4))}},
+         {4, {edge_csr_buffer_->GetHandle(), csr_map_sz}},
+         {5, {admm_penalty_params_buffer_->GetHandle(), sizeof(SpringParams)}}});
+
+    // Projection: uses both ρ and k for proximal operator
     bg_admm_project_ = MakeBG(admm_project_pipeline_, "bg_admm_spring_project",
         {{0, {ctx.params_buffer, ctx.params_size}},
          {1, {edge_buffer_->GetHandle(), edge_sz}},
          {2, {ctx.q_buffer, q_sz}},
          {3, {z_buffer_->GetHandle(), zu_sz}},
-         {4, {u_buffer_->GetHandle(), zu_sz}}});
+         {4, {u_buffer_->GetHandle(), zu_sz}},
+         {5, {admm_spring_params_buffer_->GetHandle(), sizeof(ADMMSpringParams)}}});
 
+    // RHS: uses ρ (not k)
     bg_admm_rhs_ = MakeBG(admm_rhs_pipeline_, "bg_admm_spring_rhs",
         {{0, {ctx.params_buffer, ctx.params_size}},
          {1, {edge_buffer_->GetHandle(), edge_sz}},
          {2, {z_buffer_->GetHandle(), zu_sz}},
          {3, {u_buffer_->GetHandle(), zu_sz}},
          {4, {ctx.rhs_buffer, rhs_sz}},
-         {5, {spring_params_buffer_->GetHandle(), sizeof(SpringParams)}}});
+         {5, {admm_penalty_params_buffer_->GetHandle(), sizeof(SpringParams)}}});
 
     bg_admm_dual_ = MakeBG(admm_dual_pipeline_, "bg_admm_spring_dual",
         {{0, {ctx.params_buffer, ctx.params_size}},
@@ -187,7 +222,8 @@ void PDSpringTerm::InitializeADMM(const PDAssemblyContext& ctx) {
          {3, {z_buffer_->GetHandle(), zu_sz}},
          {4, {u_buffer_->GetHandle(), zu_sz}}});
 
-    LogInfo("PDSpringTerm: ADMM initialized (", E, " edges)");
+    LogInfo("PDSpringTerm: ADMM initialized (", E, " edges, rho=", rho,
+            ", k=", stiffness_, ")");
 }
 
 void PDSpringTerm::ProjectLocal(WGPUCommandEncoder encoder) {
@@ -209,6 +245,7 @@ void PDSpringTerm::ResetDual(WGPUCommandEncoder encoder) {
 void PDSpringTerm::Shutdown() {
     bg_lhs_ = {};
     bg_project_rhs_ = {};
+    bg_admm_lhs_ = {};
     bg_admm_project_ = {};
     bg_admm_rhs_ = {};
     bg_admm_dual_ = {};
@@ -224,6 +261,8 @@ void PDSpringTerm::Shutdown() {
     edge_buffer_.reset();
     edge_csr_buffer_.reset();
     spring_params_buffer_.reset();
+    admm_penalty_params_buffer_.reset();
+    admm_spring_params_buffer_.reset();
     z_buffer_.reset();
     u_buffer_.reset();
     LogInfo("PDSpringTerm: shutdown");

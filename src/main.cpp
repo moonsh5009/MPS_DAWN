@@ -6,6 +6,8 @@
 #include "ext_chebyshev_pd/pd_system_config.h"
 #include "ext_admm_pd/admm_extension.h"
 #include "ext_admm_pd/admm_system_config.h"
+#include "ext_jgs2/jgs2_extension.h"
+#include "ext_jgs2/jgs2_system_config.h"
 #include "ext_mesh/mesh_extension.h"
 #include "ext_mesh/mesh_generator.h"
 #include "ext_dynamics/dynamics_extension.h"
@@ -31,6 +33,7 @@ int main() {
     system.AddExtension(std::make_unique<ext_pd_term::PDTermExtension>(system));
     system.AddExtension(std::make_unique<ext_chebyshev_pd::ChebyshevPDExtension>(system));
     system.AddExtension(std::make_unique<ext_admm_pd::ADMMExtension>(system));
+    system.AddExtension(std::make_unique<ext_jgs2::JGS2Extension>(system));
 
     system.Transact([&](Database& db) {
         // ---- Global physics params (singleton) ----
@@ -38,15 +41,17 @@ int main() {
             {1.0f / 120.0f, {0.0f, -9.81f, 0.0f}, 0.999f});
 
         // ---- Mesh 1: Newton solver (left) ----
-        auto mesh1 = ext_mesh::CreateGrid(db, 64, 64, 0.01f, {-1.0f, 0.0f, 0.0f});
+        // auto mesh1 = ext_mesh::ImportOBJ(db, "dragon.obj", 2.0, { -1.0f, 0.0f, 0.0f });
+        auto mesh1 = ext_mesh::CreateGrid(db, 64, 64, 0.025f, {-1.0f, 0.0f, 0.0f});
 
-        ext_dynamics::BuildSpringConstraints(db, mesh1.mesh_entity, 50000.0f);
+        // ext_dynamics::BuildSpringConstraints(db, mesh1.mesh_entity, 50000.0f);
+        ext_dynamics::BuildAreaConstraints(db, mesh1.mesh_entity, 500000.0f, 500000.0f);
         ext_mesh::PinVertices(db, mesh1.mesh_entity, {0});
 
         // ---- Newton config -> mesh1 ----
         ext_newton::NewtonSystemConfig newton_cfg{};
-        newton_cfg.newton_iterations = 15;
-        newton_cfg.cg_max_iterations = 30;
+        newton_cfg.newton_iterations = 5;
+        newton_cfg.cg_max_iterations = 100;
         newton_cfg.mesh_entity = mesh1.mesh_entity;
         newton_cfg.constraint_count = 1;
         newton_cfg.constraint_entities[0] = mesh1.mesh_entity;
@@ -54,24 +59,61 @@ int main() {
         Entity newton_e = db.CreateEntity();
         db.AddComponent<ext_newton::NewtonSystemConfig>(newton_e, newton_cfg);
 
-        // ---- Mesh 2: ADMM PD solver (right, translated +2 in X) ----
-        auto mesh2 = ext_mesh::CreateGrid(db, 64, 64, 0.01f, {1.0f, 0.0f, 0.0f});
+        // // ---- Mesh 2: Chebyshev PD solver (center) ----
+        // auto mesh2 = ext_mesh::ImportOBJ(db, "dragon.obj", 2.0, { 0.0f, 0.0f, 0.0f });
+        // // auto mesh2 = ext_mesh::CreateGrid(db, 64, 64, 0.025f, {0.0f, 0.0f, 0.0f});
 
-        ext_dynamics::BuildSpringConstraints(db, mesh2.mesh_entity, 50000.0f);
-        ext_mesh::PinVertices(db, mesh2.mesh_entity, {0});
+        // ext_dynamics::BuildAreaConstraints(db, mesh2.mesh_entity, 500000.0f);
+        // ext_mesh::PinVertices(db, mesh2.mesh_entity, {0});
 
-        // ---- ADMM PD config -> mesh2 ----
-        ext_admm_pd::ADMMSystemConfig admm_cfg{};
-        admm_cfg.admm_iterations = 20;
-        admm_cfg.cg_iterations = 10;
-        admm_cfg.mesh_entity = mesh2.mesh_entity;
-        admm_cfg.constraint_count = 1;
-        admm_cfg.constraint_entities[0] = mesh2.mesh_entity;
+        // // ---- Chebyshev PD config -> mesh2 ----
+        // ext_chebyshev_pd::ChebyshevPDSystemConfig chebyshev_cfg{};
+        // chebyshev_cfg.iterations = 200;
+        // chebyshev_cfg.chebyshev_rho = 0.0f;
+        // chebyshev_cfg.mesh_entity = mesh2.mesh_entity;
+        // chebyshev_cfg.constraint_count = 1;
+        // chebyshev_cfg.constraint_entities[0] = mesh2.mesh_entity;
 
-        Entity admm_e = db.CreateEntity();
-        db.AddComponent<ext_admm_pd::ADMMSystemConfig>(admm_e, admm_cfg);
+        // Entity chebyshev_e = db.CreateEntity();
+        // db.AddComponent<ext_chebyshev_pd::ChebyshevPDSystemConfig>(chebyshev_e, chebyshev_cfg);
+
+        // // ---- Mesh 2: ADMM PD solver (right, translated +2 in X) ----
+        // auto mesh2 = ext_mesh::CreateGrid(db, 64, 64, 0.01f, {1.0f, 0.0f, 0.0f});
+
+        // ext_dynamics::BuildSpringConstraints(db, mesh2.mesh_entity, 50000.0f);
+        // ext_mesh::PinVertices(db, mesh2.mesh_entity, {0});
+
+        // // ---- ADMM PD config -> mesh2 ----
+        // ext_admm_pd::ADMMSystemConfig admm_cfg{};
+        // admm_cfg.admm_iterations = 20;
+        // admm_cfg.cg_iterations = 10;
+        // // penalty_weight = 0 → auto (M_avg/dt²)
+        // admm_cfg.mesh_entity = mesh2.mesh_entity;
+        // admm_cfg.constraint_count = 1;
+        // admm_cfg.constraint_entities[0] = mesh2.mesh_entity;
+
+        // Entity admm_e = db.CreateEntity();
+        // db.AddComponent<ext_admm_pd::ADMMSystemConfig>(admm_e, admm_cfg);
+
+        // ---- Mesh 3: JGS2 solver (right) ----
+        auto mesh3 = ext_mesh::CreateGrid(db, 32, 32, 0.025f, {3.0f, 0.0f, 0.0f});
+        ext_mesh::PinVertices(db, mesh3.mesh_entity, {0});
+
+        ext_dynamics::BuildSpringConstraints(db, mesh3.mesh_entity, 500000.0f);
+
+        // ---- JGS2 config -> mesh3 ----
+        ext_jgs2::JGS2SystemConfig jgs2_cfg{};
+        jgs2_cfg.iterations = 50;
+        jgs2_cfg.enable_correction = true;  // Phase 2: set true for Schur correction
+        jgs2_cfg.mesh_entity = mesh3.mesh_entity;
+        jgs2_cfg.constraint_count = 1;
+        jgs2_cfg.constraint_entities[0] = mesh3.mesh_entity;
+
+        Entity jgs2_e = db.CreateEntity();
+        db.AddComponent<ext_jgs2::JGS2SystemConfig>(jgs2_e, jgs2_cfg);
     });
 
+    system.SetSimulationRunning(true);
     system.Run();
     return 0;
 }

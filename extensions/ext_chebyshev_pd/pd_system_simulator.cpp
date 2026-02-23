@@ -235,7 +235,9 @@ void ChebyshevPDSystemSimulator::Update() {
     uint32 node_wg = (node_count_ + kWorkgroupSize - 1) / kWorkgroupSize;
 
     // First frame: calibrate rho adaptively (requires separate GPU submissions)
+    // On WASM, CalibrateRho() uses a fallback (no synchronous readback needed).
     if (!rho_calibrated_ && !dynamics_->IsRhoCalibrated()) {
+#ifndef __EMSCRIPTEN__
         // Copy-in first (separate submission for scoped mode)
         if (scoped_) {
             WGPUCommandEncoderDescriptor ed = WGPU_COMMAND_ENCODER_DESCRIPTOR_INIT;
@@ -252,6 +254,7 @@ void ChebyshevPDSystemSimulator::Update() {
             wgpuCommandEncoderRelease(enc);
             WaitForGPU();
         }
+#endif
 
         dynamics_->CalibrateRho();
         rho_calibrated_ = true;

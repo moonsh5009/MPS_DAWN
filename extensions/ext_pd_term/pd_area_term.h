@@ -13,7 +13,7 @@ namespace ext_pd_term {
 
 class PDAreaTerm : public mps::simulate::IProjectiveTerm {
 public:
-    PDAreaTerm(const std::vector<ext_dynamics::AreaTriangle>& triangles, mps::float32 stiffness);
+    PDAreaTerm(const std::vector<ext_dynamics::AreaTriangle>& triangles, mps::float32 stretch_stiffness, mps::float32 shear_stiffness);
 
     [[nodiscard]] const std::string& GetName() const override;
     void DeclareSparsity(mps::simulate::SparsityBuilder& builder) override;
@@ -34,7 +34,8 @@ public:
 private:
     std::vector<ext_dynamics::AreaTriangle> triangles_;
     std::vector<ext_dynamics::FaceCSRMapping> face_csr_mappings_;
-    mps::float32 stiffness_;
+    mps::float32 stretch_stiffness_;
+    mps::float32 shear_stiffness_;
     mps::uint32 nnz_ = 0;
 
     std::unique_ptr<mps::gpu::GPUBuffer<ext_dynamics::AreaTriangle>> triangle_buffer_;

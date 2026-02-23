@@ -27,40 +27,42 @@ public:
     virtual WGPUBuffer GetBufferHandle() const = 0;
 };
 
-// Typed singleton buffer: transforms HostT → GpuT and uploads to uniform buffer
+// Typed singleton buffer: transforms HostT → GpuT and uploads to uniform buffer.
+// Uses lazy initialization — GPU buffer is created on first SyncFromHost() call,
+// so RegisterSingleton() can be called before GPU is initialized (e.g., WASM async init).
 template<database::Component HostT, typename GpuT>
 class SingletonBufferEntry : public ISingletonBufferEntry {
 public:
     SingletonBufferEntry(std::function<GpuT(const HostT&)> transform,
                          const std::string& label)
-        : transform_(std::move(transform)) {
-        GpuT initial = transform_(HostT{});
-        buffer_ = std::make_unique<gpu::GPUBuffer<GpuT>>(
-            gpu::BufferUsage::Uniform,
-            std::span<const GpuT>(&initial, 1), label);
-    }
+        : transform_(std::move(transform)), label_(label) {}
 
     bool SyncFromHost(const database::Database& db) override {
         const auto& host_val = db.GetSingleton<HostT>();
-        if (first_sync_ || std::memcmp(&host_val, &cached_, sizeof(HostT)) != 0) {
+        if (!buffer_ || std::memcmp(&host_val, &cached_, sizeof(HostT)) != 0) {
             cached_ = host_val;
             GpuT gpu_val = transform_(cached_);
-            buffer_->WriteData(std::span<const GpuT>(&gpu_val, 1));
-            first_sync_ = false;
+            if (!buffer_) {
+                buffer_ = std::make_unique<gpu::GPUBuffer<GpuT>>(
+                    gpu::BufferUsage::Uniform,
+                    std::span<const GpuT>(&gpu_val, 1), label_);
+            } else {
+                buffer_->WriteData(std::span<const GpuT>(&gpu_val, 1));
+            }
             return true;
         }
         return false;
     }
 
     WGPUBuffer GetBufferHandle() const override {
-        return buffer_->GetHandle();
+        return buffer_ ? buffer_->GetHandle() : nullptr;
     }
 
 private:
     std::function<GpuT(const HostT&)> transform_;
+    std::string label_;
     std::unique_ptr<gpu::GPUBuffer<GpuT>> buffer_;
     HostT cached_{};
-    bool first_sync_ = true;
 };
 
 // Mirrors host ECS data (components and arrays) into GPU buffers.

@@ -19,6 +19,7 @@ extensions/ext_pd_term/
 | Type | Header | Description |
 |------|--------|-------------|
 | `PDTermExtension` | `pd_term_extension.h` | IExtension: registers PDSpringTermProvider + PDAreaTermProvider |
+| `ADMMSpringParams` | `pd_spring_term.h` | GPU uniform: `alignas(16) {penalty_weight, stiffness}` — 16 bytes (ADMM ρ + physical k) |
 | `PDSpringTerm` | `pd_spring_term.h` | IProjectiveTerm: spring distance constraint (LHS + ProjectRHS + ADMM methods) |
 | `PDSpringTermProvider` | `pd_spring_term_provider.h` | IProjectiveTermProvider: creates PDSpringTerm from SpringConstraintData |
 | `PDAreaTerm` | `pd_area_term.h` | IProjectiveTerm: ARAP area constraint (LHS + ProjectRHS + ADMM methods) |
@@ -50,8 +51,9 @@ void ProjectRHS(WGPUCommandEncoder encoder) override;   // fused local projectio
 
 // ADMM methods (z/u buffers per edge)
 void InitializeADMM(const PDAssemblyContext& ctx) override;
-void ProjectLocal(WGPUCommandEncoder encoder) override;      // z = rest_len * normalize(S*q + u)
-void AssembleADMMRHS(WGPUCommandEncoder encoder) override;   // rhs += w*S^T*(z-u)
+void AssembleADMMLHS(WGPUCommandEncoder encoder) override;   // LHS with ρ (penalty) instead of k (stiffness)
+void ProjectLocal(WGPUCommandEncoder encoder) override;      // z = proximal projection with ρ and k
+void AssembleADMMRHS(WGPUCommandEncoder encoder) override;   // rhs += ρ*S^T*(z-u)
 void UpdateDual(WGPUCommandEncoder encoder) override;        // u += S*q - z
 void ResetDual(WGPUCommandEncoder encoder) override;         // z=S*s, u=0
 void Shutdown() override;
@@ -60,7 +62,7 @@ void Shutdown() override;
 ### PDAreaTerm
 
 ```cpp
-PDAreaTerm(const std::vector<ext_dynamics::AreaTriangle>& triangles, float32 stiffness);
+PDAreaTerm(const std::vector<ext_dynamics::AreaTriangle>& triangles, float32 stretch_stiffness, float32 shear_stiffness);
 const std::string& GetName() const override;
 void DeclareSparsity(SparsityBuilder& builder) override;
 void Initialize(const SparsityBuilder& sparsity, const PDAssemblyContext& ctx) override;

@@ -67,7 +67,7 @@ Owns the `core_simulate` module. Manages GPU buffer mirroring (DeviceDB), conjug
 1. Create `pd_new_term.h/cpp` in `extensions/ext_pd_term/`
 2. Inherit `IProjectiveTerm`
 3. Implement `GetName()`, `Initialize(sparsity, ctx)` (cache bind groups from PDAssemblyContext), `AssembleLHS()`, `ProjectRHS()` (fused local projection + RHS), `Shutdown()`
-4. For ADMM support: implement `InitializeADMM(ctx)`, `ProjectLocal()`, `AssembleADMMRHS()`, `UpdateDual()`, `ResetDual()`
+4. For ADMM support: implement `InitializeADMM(ctx)`, `ProjectLocal()`, `AssembleADMMRHS()`, `UpdateDual()`, `ResetDual()`. Optionally override `AssembleADMMLHS()` if ADMM LHS differs from Chebyshev LHS (default delegates to `AssembleLHS()`)
 5. Override `DeclareSparsity()` if the term contributes off-diagonal entries
 6. Create corresponding WGSL shaders in `assets/shaders/ext_pd_term/` (Chebyshev: lhs, project_rhs; ADMM: project, rhs, dual, reset)
 7. Create an `IProjectiveTermProvider` to instantiate the term

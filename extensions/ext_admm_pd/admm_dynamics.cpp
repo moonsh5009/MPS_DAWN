@@ -1,5 +1,6 @@
 #include "ext_admm_pd/admm_dynamics.h"
 #include "core_simulate/sim_components.h"
+#include "core_simulate/simulate_config.h"
 #include "core_gpu/gpu_core.h"
 #include "core_gpu/shader_loader.h"
 #include "core_gpu/bind_group_builder.h"
@@ -46,6 +47,7 @@ static void Dispatch(WGPUCommandEncoder encoder,
     wgpuComputePassEncoderEnd(pass);
     wgpuComputePassEncoderRelease(pass);
 }
+
 
 static GPUComputePipeline MakePipeline(const std::string& shader_path,
                                         const std::string& label) {
@@ -132,6 +134,7 @@ void ADMMDynamics::Initialize(uint32 node_count, uint32 edge_count, uint32 face_
     ctx.edge_count = edge_count;
     ctx.workgroup_size = workgroup_size;
     ctx.params_size = sizeof(SolverParams);
+    ctx.penalty_weight = penalty_weight_;
 
     // Initialize terms (Chebyshev path: LHS + RHS bind groups)
     for (auto& term : terms_) {
@@ -164,9 +167,9 @@ void ADMMDynamics::Initialize(uint32 node_count, uint32 edge_count, uint32 face_
         // Inertial LHS: diag += M/dt^2 * I3
         Dispatch(encoder, pd_inertial_lhs_pipeline_, bg_inertial_lhs_, node_wg_count_);
 
-        // Term LHS contributions (constant w * S^T * S)
+        // Term LHS contributions (constant ρ * S^T * S for ADMM)
         for (auto& term : terms_) {
-            term->AssembleLHS(encoder);
+            term->AssembleADMMLHS(encoder);
         }
 
         WGPUCommandBuffer cmd = wgpuCommandEncoderFinish(encoder, nullptr);
@@ -177,11 +180,13 @@ void ADMMDynamics::Initialize(uint32 node_count, uint32 edge_count, uint32 face_
 
     // Cache CG bind groups (after LHS is built since SpMV needs diag/csr)
     uint64 mass_sz = uint64(node_count) * sizeof(SimMass);
+    uint64 diag_sz_cg = uint64(node_count) * 9 * sizeof(float32);
     spmv_ = std::make_unique<SpMVOperator>(*this);
     cg_solver_->CacheBindGroups(physics_buffer, physics_size,
                                  params_buffer_->GetHandle(), sizeof(SolverParams),
                                  mass_buffer, mass_sz,
-                                 *spmv_);
+                                 *spmv_,
+                                 diag_buffer_->GetHandle(), diag_sz_cg);
 
     LogInfo("ADMMDynamics: initialized (", node_count_, " nodes, ",
             edge_count_, " edges, ", face_count_, " faces, nnz=", nnz_,
@@ -252,6 +257,7 @@ void ADMMDynamics::CreatePipelines() {
     pd_copy_pipeline_ = MakePipeline("ext_pd_common/pd_copy_vec4.wgsl", "admm_pd_copy");
     pd_mass_rhs_pipeline_ = MakePipeline("ext_pd_common/pd_mass_rhs.wgsl", "admm_pd_mass_rhs");
     pd_inertial_lhs_pipeline_ = MakePipeline("ext_pd_common/pd_inertial_lhs.wgsl", "admm_pd_inertial_lhs");
+    pd_fixup_pinned_pipeline_ = MakePipeline("ext_pd_common/pd_fixup_pinned.wgsl", "admm_pd_fixup_pinned");
 
     // ADMM-specific SpMV (reuses Newton's cg_spmv shader pattern)
     spmv_pipeline_ = MakePipeline("ext_admm_pd/admm_cg_spmv.wgsl", "admm_cg_spmv");
@@ -303,6 +309,13 @@ void ADMMDynamics::CacheBindGroups(WGPUBuffer position_buffer,
         {{0, {phys_h, phys_sz}}, {1, {params_h, params_sz}},
          {2, {mass_buffer, mass_sz}},
          {3, {diag_buffer_->GetHandle(), diag_sz}}});
+
+    // pd_fixup_pinned: restore pinned nodes to s after CG solve
+    bg_fixup_pinned_ = MakeBG(pd_fixup_pinned_pipeline_, "bg_admm_fixup_pinned",
+        {{0, {params_h, params_sz}},
+         {1, {q_curr_h, vec_sz}},
+         {2, {s_h, vec_sz}},
+         {3, {mass_buffer, mass_sz}}});
 }
 
 void ADMMDynamics::Solve(WGPUCommandEncoder encoder) {
@@ -345,6 +358,10 @@ void ADMMDynamics::Solve(WGPUCommandEncoder encoder) {
         wgpuCommandEncoderCopyBufferToBuffer(encoder,
             cg_solver_->GetSolutionBuffer(), 0,
             q_curr_buffer_->GetHandle(), 0, vec_sz);
+
+        // Fixup pinned nodes: CG/MPCG zeros pinned node variables (x=0),
+        // but ADMM needs correct absolute positions. Restore from s.
+        Dispatch(encoder, pd_fixup_pinned_pipeline_, bg_fixup_pinned_, node_wg_count_);
 
         // --- Local step: z = project(S*q + u) ---
         for (auto& term : terms_) {
@@ -393,12 +410,14 @@ void ADMMDynamics::Shutdown() {
     bg_copy_q_from_s_ = {};
     bg_mass_rhs_ = {};
     bg_inertial_lhs_ = {};
+    bg_fixup_pinned_ = {};
 
     pd_init_pipeline_ = {};
     pd_predict_pipeline_ = {};
     pd_copy_pipeline_ = {};
     pd_mass_rhs_pipeline_ = {};
     pd_inertial_lhs_pipeline_ = {};
+    pd_fixup_pinned_pipeline_ = {};
     spmv_pipeline_ = {};
 
     params_buffer_.reset();

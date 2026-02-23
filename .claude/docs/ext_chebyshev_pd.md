@@ -116,6 +116,7 @@ void Shutdown();
 | `pd_copy_vec4.wgsl` | PDDynamics / ADMMDynamics | Generic vec4 buffer copy |
 | `pd_mass_rhs.wgsl` | PDDynamics / ADMMDynamics | Mass RHS: rhs += M/dt² * s |
 | `pd_inertial_lhs.wgsl` | PDDynamics / ADMMDynamics | Inertial LHS: diag += M/dt² * I |
+| `pd_fixup_pinned.wgsl` | ADMMDynamics | Restore pinned node positions from s after CG solve |
 | `pd_compute_d_inv.wgsl` | PDDynamics | Compute D⁻¹ (inverse of diagonal blocks) |
 | `pd_update_velocity.wgsl` | ChebyshevPDSystemSimulator / ADMMSystemSimulator | Velocity: v = (q - x_old) / dt * damping |
 | `pd_update_position.wgsl` | ChebyshevPDSystemSimulator / ADMMSystemSimulator | Position: pos = x_old + v * dt |

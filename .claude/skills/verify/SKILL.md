@@ -81,16 +81,15 @@ cmd.exe //c "schtasks /Delete /TN mps_verify /F" > /dev/null 2>&1
 
 ## Step 4: Verify Expected Counts
 
-From a 64x64 cloth grid, expected values:
+From the default main.cpp (two 64x64 cloth grids: Newton + Chebyshev PD, area constraints):
 
 | Metric | Value |
 |--------|-------|
-| Nodes (SimPosition) | 4096 |
-| Edges (springs) | ~16000 (structural + bending) |
-| Faces | 7938 |
-| NNZ (CSR off-diagonal) | ~32000 |
-| Newton terms | 2 (Spring + Area) — Inertial + Gravity are built into NewtonDynamics |
-| PD terms | 2 (PDSpringTerm + PDAreaTerm) per solver |
+| Nodes (SimPosition) | 8192 (2 × 4096) |
+| Faces per mesh | 7938 |
+| Newton terms | 1 (AreaTerm) — Inertial + Gravity built into NewtonDynamics |
+| Chebyshev PD terms | 1 (PDAreaTerm) |
+| ADMM PD | Skipped (ADMMSystemConfig commented out in main.cpp) |
 | Simulators | 4 (NewtonSystemSimulator + ChebyshevPDSystemSimulator + ADMMSystemSimulator + MeshPostProcessor) |
 | Renderers | 1 (MeshRenderer) |
 

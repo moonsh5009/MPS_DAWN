@@ -136,12 +136,12 @@ void QueryTopology(const Database& db, Entity entity,
                    uint32& out_edge_count, uint32& out_face_count) const override;
 ```
 
-`CreateTerm()` reads `ArrayStorage<AreaTriangle>` and `AreaConstraintData::stiffness`. Returns `nullptr` if no triangles.
+`CreateTerm()` reads `ArrayStorage<AreaTriangle>` and `AreaConstraintData::{stretch_stiffness, shear_stiffness}`. Returns `nullptr` if no triangles.
 
 ### AreaTerm
 
 ```cpp
-AreaTerm(const std::vector<ext_dynamics::AreaTriangle>& triangles, float32 stiffness);
+AreaTerm(const std::vector<ext_dynamics::AreaTriangle>& triangles, float32 stretch_stiffness, float32 shear_stiffness);
 const std::string& GetName() const override;
 void DeclareSparsity(SparsityBuilder& builder) override;
 void Initialize(const SparsityBuilder& sparsity, const AssemblyContext& ctx) override;

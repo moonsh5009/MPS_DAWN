@@ -24,7 +24,7 @@ extensions/ext_dynamics/
 | `SpringConstraintData` | `spring_constraint.h` | Host-only config: `{stiffness}` — uniform spring stiffness |
 | `SpringEdge` | `spring_types.h` | `{n0, n1, rest_length}` — 12 bytes, GPU-compatible |
 | `EdgeCSRMapping` | `spring_types.h` | `{block_ab, block_ba, block_aa, block_bb}` — CSR write indices |
-| `AreaConstraintData` | `area_constraint.h` | Host-only config: `{stiffness}` |
+| `AreaConstraintData` | `area_constraint.h` | Host-only config: `{stretch_stiffness, shear_stiffness}` |
 | `AreaTriangle` | `area_types.h` | `{n0, n1, n2, rest_area, dm_inv_00..11}` — 32 bytes, GPU-compatible |
 | `FaceCSRMapping` | `area_types.h` | `{csr_01..21}` — 24 bytes, CSR write indices for triangle edges |
 | `GlobalPhysicsParams` | `global_physics_params.h` | Host-side DB singleton: `{dt, gravity, damping}` |
@@ -47,10 +47,11 @@ Reads `SimPosition` + `MeshFace` arrays from the mesh entity, extracts unique ed
 ```cpp
 mps::uint32 BuildAreaConstraints(mps::database::Database& db,
                                  mps::database::Entity mesh_entity,
-                                 mps::float32 stiffness);
+                                 mps::float32 stretch_stiffness,
+                                 mps::float32 shear_stiffness = 0.0f);
 ```
 
-Reads `SimPosition` + `MeshFace` arrays from the mesh entity, computes area triangles with rest area and Dm_inv. Writes `AreaTriangle` array and adds `AreaConstraintData` component. Returns triangle count. Must be called inside a `Transact` block.
+Reads `SimPosition` + `MeshFace` arrays from the mesh entity, computes area triangles with rest area and Dm_inv. Writes `AreaTriangle` array and adds `AreaConstraintData{stretch_stiffness, shear_stiffness}` component. Returns triangle count. Must be called inside a `Transact` block.
 
 ### GlobalPhysicsParams (global_physics_params.h)
 
@@ -97,7 +98,7 @@ void Register(mps::system::System& system) override;
 ```
 Mesh Entity (also serves as constraint entity):
   ├── SpringConstraintData { stiffness }    (config component, added by BuildSpringConstraints)
-  ├── AreaConstraintData { stiffness }      (config component, added by BuildAreaConstraints)
+  ├── AreaConstraintData { stretch_stiffness, shear_stiffness }  (config component, added by BuildAreaConstraints)
   ├── ArrayStorage<SpringEdge> [...]        (edge topology, written by BuildSpringConstraints)
   └── ArrayStorage<AreaTriangle> [...]      (triangle topology, written by BuildAreaConstraints)
 ```

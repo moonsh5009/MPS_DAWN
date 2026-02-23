@@ -27,6 +27,7 @@ public:
 
 // Generic GPU conjugate gradient solver.
 // Uses MPCG (mass-filtered CG) for pinned nodes (inv_mass == 0).
+// Optionally uses Jacobi preconditioning (PCG) when a diagonal buffer is provided.
 class CGSolver {
 public:
     CGSolver();
@@ -45,10 +46,12 @@ public:
 
     // Cache all bind groups for the CG loop. Call after Initialize().
     // Also calls spmv.PrepareSolve() with p and ap buffers.
+    // If diag_buffer is provided (non-null), enables Jacobi-preconditioned CG (PCG).
     void CacheBindGroups(WGPUBuffer physics_buffer, uint64 physics_size,
                          WGPUBuffer params_buffer, uint64 params_size,
                          WGPUBuffer mass_buffer, uint64 mass_size,
-                         ISpMVOperator& spmv);
+                         ISpMVOperator& spmv,
+                         WGPUBuffer diag_buffer = nullptr, uint64 diag_size = 0);
 
     // Run CG solver. RHS must already be in GetRHSBuffer().
     // Bind groups must be cached via CacheBindGroups() first.
@@ -71,6 +74,9 @@ private:
     std::unique_ptr<gpu::GPUBuffer<float32>> cg_p_;
     std::unique_ptr<gpu::GPUBuffer<float32>> cg_ap_;
 
+    // PCG preconditioned residual (created when diag_buffer is provided)
+    std::unique_ptr<gpu::GPUBuffer<float32>> cg_z_;
+
     // Reduction buffers
     std::unique_ptr<gpu::GPUBuffer<float32>> partial_;
     std::unique_ptr<gpu::GPUBuffer<float32>> scalar_;
@@ -91,6 +97,7 @@ private:
     gpu::GPUComputePipeline cg_compute_scalars_pipeline_;
     gpu::GPUComputePipeline cg_update_xr_pipeline_;
     gpu::GPUComputePipeline cg_update_p_pipeline_;
+    gpu::GPUComputePipeline cg_precond_pipeline_;
 
     // Cached bind groups (created in CacheBindGroups)
     gpu::GPUBindGroup bg_init_;
@@ -104,8 +111,14 @@ private:
     gpu::GPUBindGroup bg_xr_;
     gpu::GPUBindGroup bg_p_;
 
+    // PCG bind groups (created when diag_buffer is provided)
+    gpu::GPUBindGroup bg_precond_;
+    gpu::GPUBindGroup bg_dot_rz_;    // dot(r, z) instead of dot(r, r)
+    gpu::GPUBindGroup bg_p_pcg_;     // p = z + beta*p (binds z where r goes)
+
     // Cached SpMV operator (non-owning, set in CacheBindGroups)
     ISpMVOperator* spmv_ = nullptr;
+    bool has_preconditioner_ = false;
 };
 
 }  // namespace simulate

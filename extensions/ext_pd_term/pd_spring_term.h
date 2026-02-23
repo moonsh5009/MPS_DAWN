@@ -11,6 +11,12 @@
 
 namespace ext_pd_term {
 
+// GPU-side ADMM params: penalty weight ρ + physical stiffness k (16 bytes, uniform)
+struct alignas(16) ADMMSpringParams {
+    mps::float32 penalty_weight = 1.0f;   // ρ (ADMM penalty)
+    mps::float32 stiffness = 500.0f;      // k (physical stiffness)
+};
+
 class PDSpringTerm : public mps::simulate::IProjectiveTerm {
 public:
     PDSpringTerm(const std::vector<ext_dynamics::SpringEdge>& edges, mps::float32 stiffness);
@@ -24,6 +30,7 @@ public:
 
     // ADMM methods
     void InitializeADMM(const mps::simulate::PDAssemblyContext& ctx) override;
+    void AssembleADMMLHS(WGPUCommandEncoder encoder) override;
     void ProjectLocal(WGPUCommandEncoder encoder) override;
     void AssembleADMMRHS(WGPUCommandEncoder encoder) override;
     void UpdateDual(WGPUCommandEncoder encoder) override;
@@ -54,6 +61,10 @@ private:
     std::unique_ptr<mps::gpu::GPUBuffer<mps::float32>> z_buffer_;
     std::unique_ptr<mps::gpu::GPUBuffer<mps::float32>> u_buffer_;
 
+    // ADMM params: penalty ρ as stiffness (for LHS/RHS reuse), and {ρ, k} for projection
+    std::unique_ptr<mps::gpu::GPUBuffer<ext_newton::SpringParams>> admm_penalty_params_buffer_;
+    std::unique_ptr<mps::gpu::GPUBuffer<ADMMSpringParams>> admm_spring_params_buffer_;
+
     // ADMM pipelines
     mps::gpu::GPUComputePipeline admm_project_pipeline_;
     mps::gpu::GPUComputePipeline admm_rhs_pipeline_;
@@ -61,6 +72,7 @@ private:
     mps::gpu::GPUComputePipeline admm_reset_pipeline_;
 
     // ADMM bind groups
+    mps::gpu::GPUBindGroup bg_admm_lhs_;
     mps::gpu::GPUBindGroup bg_admm_project_;
     mps::gpu::GPUBindGroup bg_admm_rhs_;
     mps::gpu::GPUBindGroup bg_admm_dual_;

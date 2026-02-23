@@ -65,7 +65,7 @@ uint32 BuildSpringConstraints(Database& db, Entity mesh_entity, float32 stiffnes
     return count;
 }
 
-uint32 BuildAreaConstraints(Database& db, Entity mesh_entity, float32 stiffness) {
+uint32 BuildAreaConstraints(Database& db, Entity mesh_entity, float32 stretch_stiffness, float32 shear_stiffness) {
     const auto* positions = db.GetArray<SimPosition>(mesh_entity);
     const auto* faces = db.GetArray<ext_mesh::MeshFace>(mesh_entity);
     if (!positions || !faces) return 0;
@@ -112,7 +112,7 @@ uint32 BuildAreaConstraints(Database& db, Entity mesh_entity, float32 stiffness)
 
     uint32 count = static_cast<uint32>(triangles.size());
     db.SetArray<AreaTriangle>(mesh_entity, std::move(triangles));
-    db.AddComponent<AreaConstraintData>(mesh_entity, {stiffness});
+    db.AddComponent<AreaConstraintData>(mesh_entity, {stretch_stiffness, shear_stiffness});
     return count;
 }
 

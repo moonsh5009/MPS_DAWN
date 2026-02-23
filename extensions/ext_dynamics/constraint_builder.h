@@ -19,6 +19,7 @@ mps::uint32 BuildSpringConstraints(mps::database::Database& db,
 // Must be called inside a Transact block.
 mps::uint32 BuildAreaConstraints(mps::database::Database& db,
                                  mps::database::Entity mesh_entity,
-                                 mps::float32 stiffness);
+                                 mps::float32 stretch_stiffness,
+                                 mps::float32 shear_stiffness = 0.0f);
 
 }  // namespace ext_dynamics

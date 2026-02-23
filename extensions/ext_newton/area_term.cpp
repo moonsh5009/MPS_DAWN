@@ -18,8 +18,8 @@ namespace ext_newton {
 
 const std::string AreaTerm::kName = "AreaTerm";
 
-AreaTerm::AreaTerm(const std::vector<AreaTriangle>& triangles, float32 stiffness)
-    : triangles_(triangles), stiffness_(stiffness) {}
+AreaTerm::AreaTerm(const std::vector<AreaTriangle>& triangles, float32 stretch_stiffness, float32 shear_stiffness)
+    : triangles_(triangles), stretch_stiffness_(stretch_stiffness), shear_stiffness_(shear_stiffness) {}
 
 const std::string& AreaTerm::GetName() const { return kName; }
 
@@ -59,8 +59,8 @@ void AreaTerm::Initialize(const simulate::SparsityBuilder& sparsity, const simul
 
     // Upload area params uniform
     AreaParams params;
-    params.stiffness = stiffness_;
-    params.shear_stiffness = stiffness_ * 0.5f;  // 50% of area stiffness for shear resistance
+    params.stiffness = stretch_stiffness_;
+    params.shear_stiffness = shear_stiffness_;
     area_params_buffer_ = std::make_unique<GPUBuffer<AreaParams>>(
         BufferUsage::Uniform, std::span<const AreaParams>(&params, 1), "area_params");
 
@@ -99,7 +99,7 @@ void AreaTerm::Initialize(const simulate::SparsityBuilder& sparsity, const simul
 
     wg_count_ = (F + ctx.workgroup_size - 1) / ctx.workgroup_size;
 
-    LogInfo("AreaTerm: initialized (", F, " triangles, nnz=", nnz_, ", stiffness=", stiffness_, ")");
+    LogInfo("AreaTerm: initialized (", F, " triangles, nnz=", nnz_, ", stretch=", stretch_stiffness_, ", shear=", shear_stiffness_, ")");
 }
 
 void AreaTerm::Assemble(WGPUCommandEncoder encoder) {

@@ -13,12 +13,13 @@ struct ADMMSystemConfig {
 
     uint32 admm_iterations    = 20;    // Outer ADMM iterations
     uint32 cg_iterations      = 10;    // Inner CG iterations per ADMM step
+    float32 penalty_weight    = 0.0f;  // ADMM penalty ρ (0 = auto: M_avg/dt²)
 
     uint32 constraint_count   = 0;
     uint32 constraint_entities[MAX_CONSTRAINTS] = {};
 
     uint32 mesh_entity        = database::kInvalidEntity;
-    uint32 padding[3]         = {};
+    uint32 padding[2]         = {};
 };
 
 }  // namespace ext_admm_pd

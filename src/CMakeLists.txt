@@ -46,6 +46,7 @@ target_link_libraries(mps_dawn PRIVATE
     mps::ext_pd_term
     mps::ext_chebyshev_pd
     mps::ext_admm_pd
+    mps::ext_jgs2
 )
 
 # Asset file handling

@@ -19,8 +19,8 @@ namespace ext_pd_term {
 
 const std::string PDAreaTerm::kName = "PDAreaTerm";
 
-PDAreaTerm::PDAreaTerm(const std::vector<AreaTriangle>& triangles, float32 stiffness)
-    : triangles_(triangles), stiffness_(stiffness) {}
+PDAreaTerm::PDAreaTerm(const std::vector<AreaTriangle>& triangles, float32 stretch_stiffness, float32 shear_stiffness)
+    : triangles_(triangles), stretch_stiffness_(stretch_stiffness), shear_stiffness_(shear_stiffness) {}
 
 const std::string& PDAreaTerm::GetName() const { return kName; }
 
@@ -95,8 +95,8 @@ void PDAreaTerm::Initialize(const SparsityBuilder& sparsity, const PDAssemblyCon
         BufferUsage::Storage, std::span<const FaceCSRMapping>(face_csr_mappings_), "pd_area_csr");
 
     AreaParams params;
-    params.stiffness = stiffness_;
-    params.shear_stiffness = 0.0f;
+    params.stiffness = stretch_stiffness_;
+    params.shear_stiffness = shear_stiffness_;
     area_params_buffer_ = std::make_unique<GPUBuffer<AreaParams>>(
         BufferUsage::Uniform, std::span<const AreaParams>(&params, 1), "pd_area_params");
 

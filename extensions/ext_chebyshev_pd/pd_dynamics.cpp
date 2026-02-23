@@ -415,15 +415,23 @@ static std::vector<float32> ReadbackBuffer(WGPUBuffer src, uint64 size) {
     struct Ctx { bool done = false; };
     Ctx ctx;
     WGPUBufferMapCallbackInfo mi = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+#ifdef __EMSCRIPTEN__
+    mi.mode = WGPUCallbackMode_AllowProcessEvents;
+#else
     mi.mode = WGPUCallbackMode_WaitAnyOnly;
+#endif
     mi.callback = [](WGPUMapAsyncStatus, WGPUStringView, void* ud, void*) {
         static_cast<Ctx*>(ud)->done = true;
     };
     mi.userdata1 = &ctx;
     WGPUFuture future = wgpuBufferMapAsync(staging, WGPUMapMode_Read, 0, size, mi);
+#ifndef __EMSCRIPTEN__
     WGPUFutureWaitInfo wi = WGPU_FUTURE_WAIT_INFO_INIT;
     wi.future = future;
     wgpuInstanceWaitAny(gpu.GetWGPUInstance(), 1, &wi, UINT64_MAX);
+#else
+    while (!ctx.done) gpu.ProcessEvents();
+#endif
 
     const float32* ptr = static_cast<const float32*>(
         wgpuBufferGetConstMappedRange(staging, 0, size));
@@ -507,6 +515,17 @@ void PDDynamics::DebugDump() {
 
 bool PDDynamics::CalibrateRho() {
     if (rho_calibrated_) return false;
+
+#ifdef __EMSCRIPTEN__
+    // WASM: synchronous GPU readback is impossible (ProcessEvents busy-wait
+    // deadlocks because JS Promise callbacks never fire during WASM execution).
+    // Use a conservative fallback rho instead of adaptive calibration.
+    constexpr float32 kWasmFallbackRho = 0.9996f;
+    LogInfo("PDDynamics: WASM — skipping calibration, using fallback rho=", kWasmFallbackRho);
+    BuildChebyshevParams(kWasmFallbackRho);
+    rho_calibrated_ = true;
+    return true;
+#endif
 
     auto& gpu = GPUCore::GetInstance();
     uint64 vec_sz = uint64(node_count_) * 4 * sizeof(float32);

@@ -7,7 +7,6 @@
 #include "core_gpu/gpu_handle.h"
 #include "core_gpu/gpu_buffer.h"
 #include <memory>
-#include <string>
 #include <vector>
 
 struct WGPUCommandEncoderImpl;  typedef WGPUCommandEncoderImpl* WGPUCommandEncoder;
@@ -25,6 +24,7 @@ public:
     void AddTerm(std::unique_ptr<simulate::IProjectiveTerm> term);
     void SetADMMIterations(uint32 iterations) { admm_iterations_ = iterations; }
     void SetCGIterations(uint32 iterations) { cg_iterations_ = iterations; }
+    void SetPenaltyWeight(float32 rho) { penalty_weight_ = rho; }
 
     void Initialize(uint32 node_count, uint32 edge_count, uint32 face_count,
                     WGPUBuffer physics_buffer, uint64 physics_size,
@@ -74,6 +74,7 @@ private:
 
     uint32 admm_iterations_ = 20;
     uint32 cg_iterations_ = 10;
+    float32 penalty_weight_ = 1.0f;
 
     WGPUBuffer physics_buffer_ = nullptr;
     uint64 physics_size_ = 0;
@@ -102,6 +103,7 @@ private:
     gpu::GPUComputePipeline pd_copy_pipeline_;
     gpu::GPUComputePipeline pd_mass_rhs_pipeline_;
     gpu::GPUComputePipeline pd_inertial_lhs_pipeline_;
+    gpu::GPUComputePipeline pd_fixup_pinned_pipeline_;
     gpu::GPUComputePipeline spmv_pipeline_;
 
     // Cached bind groups
@@ -110,6 +112,7 @@ private:
     gpu::GPUBindGroup bg_copy_q_from_s_;
     gpu::GPUBindGroup bg_mass_rhs_;
     gpu::GPUBindGroup bg_inertial_lhs_;
+    gpu::GPUBindGroup bg_fixup_pinned_;
 
     static constexpr uint32 kWorkgroupSize = 64;
 };

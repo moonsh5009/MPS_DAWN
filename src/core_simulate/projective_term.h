@@ -25,6 +25,7 @@ struct PDAssemblyContext {
     uint32 workgroup_size;
     uint64 physics_size;       // size of physics buffer in bytes
     uint64 params_size;        // size of solver params buffer in bytes
+    float32 penalty_weight;    // ADMM penalty ρ (0 = not set / use stiffness)
 };
 
 // Interface for Projective Dynamics constraint terms.
@@ -52,8 +53,9 @@ public:
 
     // ADMM methods (default no-op — only implemented by ADMM-aware terms)
     virtual void InitializeADMM(const PDAssemblyContext& ctx) {}
-    virtual void ProjectLocal(WGPUCommandEncoder encoder) {}      // z = project(S*q + u)
-    virtual void AssembleADMMRHS(WGPUCommandEncoder encoder) {}   // rhs += w*S^T*(z-u)
+    virtual void AssembleADMMLHS(WGPUCommandEncoder encoder) { AssembleLHS(encoder); }
+    virtual void ProjectLocal(WGPUCommandEncoder encoder) {}      // z = prox(S*q + u)
+    virtual void AssembleADMMRHS(WGPUCommandEncoder encoder) {}   // rhs += ρ*S^T*(z-u)
     virtual void UpdateDual(WGPUCommandEncoder encoder) {}        // u += S*q - z
     virtual void ResetDual(WGPUCommandEncoder encoder) {}         // z=S*s, u=0
 

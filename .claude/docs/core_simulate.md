@@ -43,7 +43,7 @@ src/core_simulate/
 | `IDynamicsTerm` | `dynamics_term.h` | Newton physics contribution: `DeclareSparsity()`, `Initialize(sparsity, ctx)`, `Assemble(encoder)` |
 | `AssemblyContext` | `dynamics_term.h` | GPU buffer handles passed to Newton terms during Initialize for bind group caching |
 | `SparsityBuilder` | `dynamics_term.h` | Builds CSR sparsity pattern from declared edges |
-| `IProjectiveTerm` | `projective_term.h` | PD constraint term: `AssembleLHS()`, `ProjectRHS()` + ADMM methods (`InitializeADMM`, `ProjectLocal`, `AssembleADMMRHS`, `UpdateDual`, `ResetDual`) |
+| `IProjectiveTerm` | `projective_term.h` | PD constraint term: `AssembleLHS()`, `ProjectRHS()` + ADMM methods (`InitializeADMM`, `AssembleADMMLHS`, `ProjectLocal`, `AssembleADMMRHS`, `UpdateDual`, `ResetDual`) |
 | `PDAssemblyContext` | `projective_term.h` | GPU buffer handles passed to PD terms during Initialize for bind group caching |
 | `IProjectiveTermProvider` | `projective_term_provider.h` | PD term factory: `HasConfig()`, `CreateTerm()`, `DeclareTopology()`, `QueryTopology()` |
 | `SolverParams` | `solver_params.h` | Per-solver GPU uniform: `alignas(16) {node_count, edge_count, face_count, cg_max_iter, cg_tolerance}` — 32 bytes |
@@ -132,7 +132,7 @@ virtual void OnDatabaseChanged() {}  // Called after every Transact/Undo/Redo
 ```cpp
 // Compile-time toggle — only included by simulator .cpp files.
 // Changing this value only rebuilds those .cpp files (not all ISimulator dependents).
-inline constexpr bool kEnableSimulationProfiling = true;
+inline constexpr bool kEnableSimulationProfiling = false;
 
 // Block until all previously submitted GPU work completes.
 // Uses wgpuQueueOnSubmittedWorkDone + WaitAny (native) or ProcessEvents (WASM).
@@ -173,10 +173,11 @@ virtual void Initialize(const SparsityBuilder& sparsity, const PDAssemblyContext
 virtual void AssembleLHS(WGPUCommandEncoder encoder) = 0;   // constant LHS (w * S^T * S)
 virtual void ProjectRHS(WGPUCommandEncoder encoder) = 0;    // fused local projection + RHS (w * S^T * p)
 
-// ADMM methods (default no-op — only implemented by ADMM-aware terms)
+// ADMM methods (default no-op unless noted — only implemented by ADMM-aware terms)
 virtual void InitializeADMM(const PDAssemblyContext& ctx) {}
-virtual void ProjectLocal(WGPUCommandEncoder encoder) {}      // z = project(S*q + u)
-virtual void AssembleADMMRHS(WGPUCommandEncoder encoder) {}   // rhs += w*S^T*(z-u)
+virtual void AssembleADMMLHS(WGPUCommandEncoder encoder) { AssembleLHS(encoder); }  // default: delegates to Chebyshev LHS
+virtual void ProjectLocal(WGPUCommandEncoder encoder) {}      // z = prox(S*q + u)
+virtual void AssembleADMMRHS(WGPUCommandEncoder encoder) {}   // rhs += ρ*S^T*(z-u)
 virtual void UpdateDual(WGPUCommandEncoder encoder) {}        // u += S*q - z
 virtual void ResetDual(WGPUCommandEncoder encoder) {}         // z=S*s, u=0
 
@@ -200,6 +201,7 @@ struct PDAssemblyContext {
     uint32 node_count, edge_count, workgroup_size;
     uint64 physics_size;           // size of physics buffer in bytes
     uint64 params_size;            // size of solver params buffer in bytes
+    float32 penalty_weight;        // ADMM penalty ρ (0 = not set / use stiffness)
 };
 ```
 
@@ -237,11 +239,13 @@ WGPUBuffer GetRHSBuffer() const;
 WGPUBuffer GetSolutionBuffer() const;
 uint64 GetVectorSize() const;
 
-// Cache all bind groups (call after Initialize, before Solve)
+// Cache all bind groups (call after Initialize, before Solve).
+// If diag_buffer is provided, enables Jacobi-preconditioned CG (PCG).
 void CacheBindGroups(WGPUBuffer physics_buffer, uint64 physics_size,
                      WGPUBuffer params_buffer, uint64 params_size,
                      WGPUBuffer mass_buffer, uint64 mass_size,
-                     ISpMVOperator& spmv);
+                     ISpMVOperator& spmv,
+                     WGPUBuffer diag_buffer = nullptr, uint64 diag_size = 0);
 
 // Dispatch CG iterations using cached bind groups
 void Solve(WGPUCommandEncoder encoder, uint32 cg_iterations);
@@ -324,6 +328,7 @@ ADMM solver — ADMMDynamics (ext_admm_pd, instantiated by ADMMSystemSimulator)
 | `cg_compute_scalars.wgsl` | CGSolver | Compute alpha/beta scalars |
 | `cg_update_xr.wgsl` | CGSolver | Update solution and residual |
 | `cg_update_p.wgsl` | CGSolver | Update search direction |
+| `cg_precond.wgsl` | CGSolver | Jacobi preconditioner: z = D^{-1} * r (PCG, optional) |
 
 Header includes (`assets/shaders/core_simulate/header/`): `physics_params.wgsl` (PhysicsParams struct: dt, gravity, damping, derived values), `solver_params.wgsl` (SolverParams struct: topology counts + CG config), `atomic_float.wgsl` (CAS-based float atomics), `sim_mass.wgsl` (SimMass struct: `{mass, inv_mass}`).
 

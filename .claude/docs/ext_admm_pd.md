@@ -72,10 +72,11 @@ struct ADMMSystemConfig {
     static constexpr uint32 MAX_CONSTRAINTS = 8;
     uint32 admm_iterations    = 20;    // Outer ADMM iterations
     uint32 cg_iterations      = 10;    // Inner CG iterations per ADMM step
+    float32 penalty_weight    = 0.0f;  // ADMM penalty ρ (0 = auto: M_avg/dt²)
     uint32 constraint_count   = 0;
     uint32 constraint_entities[MAX_CONSTRAINTS] = {};
     uint32 mesh_entity        = database::kInvalidEntity;  // kInvalidEntity = global, valid entity = scoped
-    uint32 padding[3]         = {};
+    uint32 padding[2]         = {};
 };
 ```
 
@@ -85,6 +86,7 @@ struct ADMMSystemConfig {
 void AddTerm(std::unique_ptr<IProjectiveTerm> term);
 void SetADMMIterations(uint32 iterations);
 void SetCGIterations(uint32 iterations);
+void SetPenaltyWeight(float32 rho);
 
 void Initialize(uint32 node_count, uint32 edge_count, uint32 face_count,
                 WGPUBuffer physics_buffer, uint64 physics_size,
@@ -116,6 +118,7 @@ for k = 0..admm_iterations-1:
     for each term: term->AssembleADMMRHS()    // rhs += w*S^T*(z-u)
     CGSolver::Solve(encoder, cg_iterations)   // CG: A*x = rhs
     Copy cg_x → q_curr
+    Fixup pinned nodes: restore q from s       // pd_fixup_pinned shader
 
     // Local step
     for each term: term->ProjectLocal()       // z = project(S*q + u)
@@ -152,4 +155,4 @@ Gravity/damping are read from GlobalPhysicsParams DB singleton (ext_dynamics/glo
 |--------|---------|---------|
 | `admm_cg_spmv.wgsl` | SpMVOperator | CSR SpMV: Ap = D*p + offdiag*p for CG inner solve |
 
-Also uses shared PD shaders from `assets/shaders/ext_pd_common/` (pd_init, pd_predict, pd_copy_vec4, pd_mass_rhs, pd_inertial_lhs, pd_update_velocity, pd_update_position) and CG solver shaders from `assets/shaders/core_simulate/`.
+Also uses shared PD shaders from `assets/shaders/ext_pd_common/` (pd_init, pd_predict, pd_copy_vec4, pd_mass_rhs, pd_inertial_lhs, pd_fixup_pinned, pd_update_velocity, pd_update_position) and CG solver shaders from `assets/shaders/core_simulate/`.

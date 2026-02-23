@@ -91,7 +91,7 @@ std::unique_ptr<IDynamicsTerm> AreaTermProvider::CreateTerm(
     if (all_triangles.empty()) return nullptr;
 
     face_count_ = static_cast<uint32>(all_triangles.size());
-    return std::make_unique<AreaTerm>(all_triangles, config->stiffness);
+    return std::make_unique<AreaTerm>(all_triangles, config->stretch_stiffness, config->shear_stiffness);
 }
 
 void AreaTermProvider::DeclareTopology(uint32& out_edge_count, uint32& out_face_count) {

@@ -162,6 +162,32 @@ void ADMMSystemSimulator::Initialize() {
     dynamics_->SetADMMIterations(config->admm_iterations);
     dynamics_->SetCGIterations(config->cg_iterations);
 
+    // Compute ADMM penalty weight ρ
+    float32 rho = config->penalty_weight;
+    if (rho <= 0.0f) {
+        // Auto: ρ = M_avg / dt²  (matches inertial scale for good CG conditioning)
+        const auto& physics_params = db.GetSingleton<GlobalPhysicsParams>();
+        float32 dt = physics_params.dt;
+        float32 inv_dt_sq = 1.0f / (dt * dt);
+
+        float32 avg_mass = 0.01f;
+        if (config->mesh_entity != database::kInvalidEntity) {
+            const auto* mass_arr = db.GetArray<SimMass>(config->mesh_entity);
+            if (mass_arr && !mass_arr->empty()) {
+                float32 total = 0.0f;
+                uint32 count = 0;
+                for (const auto& m : *mass_arr) {
+                    if (m.inv_mass > 0.0f) { total += m.mass; count++; }
+                }
+                if (count > 0) avg_mass = total / static_cast<float32>(count);
+            }
+        }
+        rho = avg_mass * inv_dt_sq;
+        LogInfo("ADMMSystemSimulator: auto penalty_weight = ", rho,
+                " (avg_mass=", avg_mass, ", dt=", dt, ")");
+    }
+    dynamics_->SetPenaltyWeight(rho);
+
     dynamics_->Initialize(node_count_, total_edge_count, total_face_count,
                           physics_h, physics_sz, pos_h, vel_h, mass_h);
 
@@ -221,7 +247,6 @@ void ADMMSystemSimulator::Update() {
     enc_desc.label = {"admm_pd_compute", 15};
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(gpu.GetDevice(), &enc_desc);
 
-    // Copy-in: global -> local (scoped mode)
     if (scoped_) {
         uint64 pos_off = uint64(node_offset_) * sizeof(SimPosition);
         uint64 vel_off = uint64(node_offset_) * sizeof(SimVelocity);
@@ -231,7 +256,6 @@ void ADMMSystemSimulator::Update() {
         wgpuCommandEncoderCopyBufferToBuffer(encoder, global_vel_, vel_off, local_vel_, 0, vel_sz_copy);
     }
 
-    // Solve ADMM PD (computes q_curr)
     dynamics_->Solve(encoder);
 
     auto dispatch = [&](const GPUComputePipeline& pipeline, const GPUBindGroup& bg, uint32 wg_count) {
@@ -245,13 +269,9 @@ void ADMMSystemSimulator::Update() {
         wgpuComputePassEncoderRelease(pass);
     };
 
-    // Update velocity: v = (q - x_old) / dt * damping
     dispatch(update_velocity_pipeline_, bg_vel_, node_wg);
-
-    // Update position: pos = x_old + v * dt
     dispatch(update_position_pipeline_, bg_pos_, node_wg);
 
-    // Copy-out: local -> global (scoped mode)
     if (scoped_) {
         uint64 pos_off = uint64(node_offset_) * sizeof(SimPosition);
         uint64 vel_off = uint64(node_offset_) * sizeof(SimVelocity);

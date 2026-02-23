@@ -49,6 +49,7 @@ static void Dispatch(WGPUCommandEncoder encoder,
     wgpuComputePassEncoderRelease(pass);
 }
 
+
 static GPUComputePipeline MakePipeline(const std::string& shader_path,
                                         const std::string& label) {
     auto shader = ShaderLoader::CreateModule("ext_newton/" + shader_path, label);

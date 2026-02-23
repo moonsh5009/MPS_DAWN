@@ -298,51 +298,6 @@ void NewtonSystemSimulator::Update() {
     wgpuCommandBufferRelease(cmd);
     wgpuCommandEncoderRelease(encoder);
 
-    // Debug: log sample node positions for first 20 frames
-    if (debug_frame_ < 20) {
-        WaitForGPU();
-        WGPUBuffer pos_buf = scoped_ ? local_pos_ : system_.GetDeviceBuffer<SimPosition>();
-        uint32 sample_node = std::min(uint32(2048), node_count_ - 1);
-        uint64 read_offset = uint64(sample_node) * sizeof(SimPosition);
-        uint64 read_size = sizeof(SimPosition);
-
-        auto& gpu_rb = GPUCore::GetInstance();
-        WGPUBufferDescriptor bd = WGPU_BUFFER_DESCRIPTOR_INIT;
-        bd.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
-        bd.size = read_size;
-        WGPUBuffer staging = wgpuDeviceCreateBuffer(gpu_rb.GetDevice(), &bd);
-
-        WGPUCommandEncoderDescriptor ed = WGPU_COMMAND_ENCODER_DESCRIPTOR_INIT;
-        WGPUCommandEncoder enc_rb = wgpuDeviceCreateCommandEncoder(gpu_rb.GetDevice(), &ed);
-        wgpuCommandEncoderCopyBufferToBuffer(enc_rb, pos_buf, read_offset, staging, 0, read_size);
-        WGPUCommandBuffer cb = wgpuCommandEncoderFinish(enc_rb, nullptr);
-        wgpuQueueSubmit(gpu_rb.GetQueue(), 1, &cb);
-        wgpuCommandBufferRelease(cb);
-        wgpuCommandEncoderRelease(enc_rb);
-
-        WaitForGPU();
-        struct Ctx { bool done = false; };
-        Ctx map_ctx;
-        WGPUBufferMapCallbackInfo mi = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
-        mi.mode = WGPUCallbackMode_WaitAnyOnly;
-        mi.callback = [](WGPUMapAsyncStatus, WGPUStringView, void* ud, void*) {
-            static_cast<Ctx*>(ud)->done = true;
-        };
-        mi.userdata1 = &map_ctx;
-        WGPUFuture future = wgpuBufferMapAsync(staging, WGPUMapMode_Read, 0, read_size, mi);
-        WGPUFutureWaitInfo wi = WGPU_FUTURE_WAIT_INFO_INIT;
-        wi.future = future;
-        wgpuInstanceWaitAny(gpu_rb.GetWGPUInstance(), 1, &wi, UINT64_MAX);
-
-        const float32* p = static_cast<const float32*>(
-            wgpuBufferGetConstMappedRange(staging, 0, read_size));
-        LogInfo("[Newton] frame=", debug_frame_, " node=", sample_node,
-                " pos=(", p[0], ", ", p[1], ", ", p[2], ")");
-        wgpuBufferUnmap(staging);
-        wgpuBufferRelease(staging);
-        debug_frame_++;
-    }
-
     if constexpr (kEnableSimulationProfiling) {
         WaitForGPU();
         profile_timer.Stop();
