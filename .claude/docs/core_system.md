@@ -148,6 +148,19 @@ ext_newton::Register()              System (registry)              NewtonSystemS
                                                                  5.   dynamics->AddTerm(term)
 ```
 
+### VBD Term Discovery (ext_avbd)
+
+`ext_avbd` uses **direct constraint discovery** (no provider registry). `AVBDSystemSimulator::Initialize()` reads `constraint_entities[]` from `AVBDSystemConfig` and checks each entity directly for `SpringConstraintData` component.
+
+```
+AVBDSystemSimulator::Initialize():
+  1. Read AVBDSystemConfig
+  2. For each constraint_entities[i]:
+  3.   Check for SpringConstraintData → create AVBDSpringTerm
+  4.   (future: AreaConstraintData → AVBDAreaTerm)
+  5.   dynamics->AddTerm(term)
+```
+
 ### PD Term Registry
 
 `ext_pd_term` registers `IProjectiveTermProvider` via `RegisterPDTermProvider()`. Both `ChebyshevPDSystemSimulator` and `ADMMSystemSimulator` discover terms via `FindAllPDTermProviders()`.

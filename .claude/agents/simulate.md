@@ -6,7 +6,7 @@ model: opus
 
 # Simulate Agent
 
-Owns the `core_simulate` module. Manages GPU buffer mirroring (DeviceDB), conjugate gradient solver, and pluggable physics term interfaces. The Newton-Raphson solver and Newton term implementations live in `ext_newton`. PD term implementations live in `ext_pd_term`, the Chebyshev PD solver in `ext_chebyshev_pd`, and the ADMM PD solver in `ext_admm_pd`. Shared constraint types live in `ext_dynamics`. Normal computation lives in `ext_mesh`.
+Owns the `core_simulate` module. Manages GPU buffer mirroring (DeviceDB), conjugate gradient solver, and pluggable physics term interfaces. The Newton-Raphson solver and Newton term implementations live in `ext_newton`. The VBD (Vertex Block Descent) solver lives in `ext_avbd` with its own extension-local `IAVBDTerm` interface. PD term implementations live in `ext_pd_term`, the Chebyshev PD solver in `ext_chebyshev_pd`, and the ADMM PD solver in `ext_admm_pd`. Shared constraint types live in `ext_dynamics`. Normal computation lives in `ext_mesh`.
 
 > **CRITICAL**: ALWAYS read `.claude/docs/core_simulate.md` FIRST before any task. This doc contains the complete file tree, types, APIs, and shader references. DO NOT read source files (.h/.cpp) to understand the module — only read source files when you need to edit them.
 

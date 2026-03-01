@@ -8,8 +8,6 @@
 #include "core_database/database.h"
 #include "core_simulate/sim_components.h"
 #include <cmath>
-#include <set>
-#include <utility>
 
 using namespace mps;
 using namespace mps::simulate;
@@ -19,46 +17,27 @@ namespace ext_dynamics {
 
 uint32 BuildSpringConstraints(Database& db, Entity mesh_entity, float32 stiffness) {
     const auto* positions = db.GetArray<SimPosition>(mesh_entity);
-    const auto* faces = db.GetArray<ext_mesh::MeshFace>(mesh_entity);
-    if (!positions || !faces) return 0;
+    const auto* mesh_edges = db.GetArray<ext_mesh::MeshEdge>(mesh_entity);
+    if (!positions || !mesh_edges) return 0;
 
-    // Extract unique edges from face topology
-    std::set<std::pair<uint32, uint32>> edge_set;
-    auto add_edge = [&](uint32 a, uint32 b) {
-        if (a > b) std::swap(a, b);
-        edge_set.insert({a, b});
-    };
-    for (const auto& face : *faces) {
-        add_edge(face.n0, face.n1);
-        add_edge(face.n1, face.n2);
-        add_edge(face.n0, face.n2);
-    }
-
+    // Build SpringEdge array from MeshEdge topology (just compute rest_length)
     std::vector<SpringEdge> edges;
-    edges.reserve(edge_set.size());
-    for (const auto& [a, b] : edge_set) {
-        const auto& pa = (*positions)[a];
-        const auto& pb = (*positions)[b];
+    edges.reserve(mesh_edges->size());
+    for (const auto& me : *mesh_edges) {
+        const auto& pa = (*positions)[me.n0];
+        const auto& pb = (*positions)[me.n1];
         float32 dx = pb.x - pa.x;
         float32 dy = pb.y - pa.y;
         float32 dz = pb.z - pa.z;
 
         SpringEdge edge;
-        edge.n0 = a;
-        edge.n1 = b;
+        edge.n0 = me.n0;
+        edge.n1 = me.n1;
         edge.rest_length = std::sqrt(dx * dx + dy * dy + dz * dz);
         edges.push_back(edge);
     }
 
     uint32 count = static_cast<uint32>(edges.size());
-
-    // Update MeshComponent edge count
-    auto* mesh_comp = db.GetComponent<ext_mesh::MeshComponent>(mesh_entity);
-    if (mesh_comp) {
-        ext_mesh::MeshComponent updated = *mesh_comp;
-        updated.edge_count = count;
-        db.SetComponent<ext_mesh::MeshComponent>(mesh_entity, updated);
-    }
 
     db.SetArray<SpringEdge>(mesh_entity, std::move(edges));
     db.AddComponent<SpringConstraintData>(mesh_entity, {stiffness});

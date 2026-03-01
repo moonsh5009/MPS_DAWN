@@ -49,6 +49,7 @@ Use the module name without `mps::` prefix:
 | `core_simulate` | simulation, device DB |
 | `core_system` | system controller |
 | `ext_newton` | Newton-Raphson solver + Newton dynamics terms |
+| `ext_avbd` | VBD solver (graph coloring + per-vertex Gauss-Seidel) |
 | `ext_pd_term` | Shared PD constraint terms (spring, area) |
 | `ext_chebyshev_pd` | Chebyshev PD solver |
 | `ext_admm_pd` | ADMM PD solver |

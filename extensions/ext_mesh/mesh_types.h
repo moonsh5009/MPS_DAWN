@@ -13,6 +13,13 @@ struct alignas(16) MeshFace {
     uint32 n2 = 0;
 };
 
+// Edge topology (GPU-compatible, read as vec2<u32> in shaders)
+// 8 bytes, natural alignment for std430 storage buffer
+struct MeshEdge {
+    uint32 n0 = 0;
+    uint32 n1 = 0;
+};
+
 // Fixed/pinned vertex record (host-only)
 struct FixedVertex {
     uint32 vertex_index = 0;        // local index within mesh

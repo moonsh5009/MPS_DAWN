@@ -44,7 +44,7 @@ Key cache variables set in root `CMakeLists.txt`:
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_newton` | `ext_pd_term` | `ext_chebyshev_pd` | `ext_admm_pd` | `ext_dynamics` | `ext_mesh` | `ext_sample` | *(omit for project-wide)*
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_newton` | `ext_avbd` | `ext_pd_term` | `ext_chebyshev_pd` | `ext_admm_pd` | `ext_dynamics` | `ext_mesh` | `ext_sample` | *(omit for project-wide)*
 
 ### Branch Naming
 

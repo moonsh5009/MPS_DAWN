@@ -1,6 +1,6 @@
 # ext_dynamics
 
-> Shared constraint types, config components, and constraint builder — used by Newton (ext_newton) and PD solvers (ext_pd_term, ext_chebyshev_pd, ext_admm_pd).
+> Shared constraint types, config components, and constraint builder — used by Newton (ext_newton), VBD (ext_avbd), and PD solvers (ext_pd_term, ext_chebyshev_pd, ext_admm_pd).
 
 ## Module Structure
 
@@ -90,8 +90,9 @@ void Register(mps::system::System& system) override;
 2. `RegisterArray<SimPosition>(Vertex)` — GPU-synced
 3. `RegisterArray<SimVelocity>()` — GPU-synced
 4. `RegisterArray<SimMass>()` — GPU-synced
-5. `RegisterIndexedArray<SpringEdge, SimPosition>(offset_fn)` — GPU-synced, auto-offsets node indices
-6. `RegisterIndexedArray<AreaTriangle, SimPosition>(offset_fn)` — GPU-synced, auto-offsets node indices
+5. `RegisterIndexedArray<MeshEdge, SimPosition>(offset_fn)` — GPU-synced, auto-offsets node indices
+6. `RegisterIndexedArray<SpringEdge, SimPosition>(offset_fn)` — GPU-synced, auto-offsets node indices
+7. `RegisterIndexedArray<AreaTriangle, SimPosition>(offset_fn)` — GPU-synced, auto-offsets node indices
 
 ## Entity Model
 
@@ -105,4 +106,4 @@ Mesh Entity (also serves as constraint entity):
 
 ## Shaders
 
-None — ext_dynamics contains only host-side data types and constraint builder. Physics shaders live in `assets/shaders/ext_newton/`, `assets/shaders/ext_pd_common/`, `assets/shaders/ext_pd_term/`, `assets/shaders/ext_chebyshev_pd/`, and `assets/shaders/ext_admm_pd/`.
+None — ext_dynamics contains only host-side data types and constraint builder. Physics shaders live in `assets/shaders/ext_newton/`, `assets/shaders/ext_avbd/`, `assets/shaders/ext_pd_common/`, `assets/shaders/ext_pd_term/`, `assets/shaders/ext_chebyshev_pd/`, and `assets/shaders/ext_admm_pd/`.

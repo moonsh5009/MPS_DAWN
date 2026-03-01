@@ -1,6 +1,7 @@
 #include "ext_dynamics/dynamics_extension.h"
 #include "ext_dynamics/spring_types.h"
 #include "ext_dynamics/area_types.h"
+#include "ext_mesh/mesh_types.h"
 #include "core_simulate/sim_components.h"
 #include "ext_dynamics/global_physics_params.h"
 #include "core_system/system.h"
@@ -46,6 +47,11 @@ void DynamicsExtension::Register(System& system) {
     system.RegisterIndexedArray<AreaTriangle, SimPosition>(
         gpu::BufferUsage::None, "area_triangles",
         [](AreaTriangle& t, uint32 off) { t.n0 += off; t.n1 += off; t.n2 += off; });
+
+    // Register mesh edge topology (for graph coloring / AVBD solver)
+    system.RegisterIndexedArray<ext_mesh::MeshEdge, SimPosition>(
+        gpu::BufferUsage::None, "mesh_edges",
+        [](ext_mesh::MeshEdge& e, uint32 off) { e.n0 += off; e.n1 += off; });
 }
 
 }  // namespace ext_dynamics

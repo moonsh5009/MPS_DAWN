@@ -72,25 +72,24 @@ cmd.exe //c "schtasks /Delete /TN mps_verify /F" > /dev/null 2>&1
 
 **Check log output for:**
 - [ ] `GPU initialized:` — D3D12 backend active
-- [ ] All extensions registered (ext_dynamics, ext_mesh, ext_newton, ext_pd_term, ext_chebyshev_pd, ext_admm_pd)
-- [ ] All term providers registered (SpringTermProvider, AreaTermProvider, PDSpringTermProvider, PDAreaTermProvider)
-- [ ] All simulators initialized (NewtonSystemSimulator, ChebyshevPDSystemSimulator, ADMMSystemSimulator, MeshPostProcessor)
+- [ ] All extensions registered (ext_dynamics, ext_mesh, ext_newton, ext_avbd)
+- [ ] All simulators initialized (AVBDSystemSimulator, MeshPostProcessor)
 - [ ] All renderers initialized (MeshRenderer)
 - [ ] `Entering main loop...` — no crash before frame loop
 - [ ] No `[ERROR]` lines in output
 
 ## Step 4: Verify Expected Counts
 
-From the default main.cpp (two 64x64 cloth grids: Newton + Chebyshev PD, area constraints):
+From the default main.cpp (one 64x64 cloth grid with AVBD solver):
 
 | Metric | Value |
 |--------|-------|
-| Nodes (SimPosition) | 8192 (2 × 4096) |
+| Nodes (SimPosition) | 4096 (64×64 grid) |
+| Edges per mesh | ~8001 (unique edges from 7938 faces) |
 | Faces per mesh | 7938 |
-| Newton terms | 1 (AreaTerm) — Inertial + Gravity built into NewtonDynamics |
-| Chebyshev PD terms | 1 (PDAreaTerm) |
-| ADMM PD | Skipped (ADMMSystemConfig commented out in main.cpp) |
-| Simulators | 4 (NewtonSystemSimulator + ChebyshevPDSystemSimulator + ADMMSystemSimulator + MeshPostProcessor) |
+| AVBD terms | 1 (AVBDSpringTerm) |
+| AVBD iterations | 10 |
+| Simulators | 2 (AVBDSystemSimulator + MeshPostProcessor) |
 | Renderers | 1 (MeshRenderer) |
 
 ## Common Issues

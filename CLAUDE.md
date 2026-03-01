@@ -39,11 +39,13 @@ src/main.cpp (executable: mps_dawn)
   ├── core_platform  (mps::core_platform)  — window, input
   ├── core_util      (mps::core_util)      — types, logger, timer, math
   ├── ext_newton        (mps::ext_newton)        — Newton-Raphson solver + IDynamicsTerm implementations (spring, area) + built-in inertia/gravity
+  ├── ext_avbd          (mps::ext_avbd)          — Vertex Block Descent solver (GPU graph coloring + per-vertex Gauss-Seidel)
   ├── ext_dynamics      (mps::ext_dynamics)       — shared constraint types (SpringEdge, AreaTriangle) + constraint builder + GlobalPhysicsParams singleton
   ├── ext_mesh          (mps::ext_mesh)           — mesh rendering + normal computation
   └── ext_sample        (mps::ext_sample)         — minimal reference extension (not linked in main.cpp)
 
 extensions/ext_newton/        — Newton solver + IDynamicsTerm implementations (spring, area) + built-in inertia/gravity
+extensions/ext_avbd/          — VBD solver: GPU graph coloring, per-vertex block coordinate descent, IAVBDTerm interface
 extensions/ext_dynamics/      — shared constraint types, config components, constraint builder
 extensions/ext_mesh/          — mesh factories (grid, OBJ, pin/unpin) + normals + indexed triangle rendering
 extensions/ext_sample/        — minimal reference extension (not linked in main.cpp)
@@ -72,7 +74,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 
 ### Namespaces
 
-`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system) | `ext_newton` / `ext_dynamics` / `ext_mesh` / `ext_sample` (extensions — not under `mps`)
+`mps` (primitives from types.h) | `mps::util` (math types, logger) | `mps::platform` (core_platform) | `mps::gpu` (core_gpu) | `mps::render` (core_render) | `mps::database` (core_database) | `mps::simulate` (core_simulate) | `mps::system` (core_system) | `ext_newton` / `ext_avbd` / `ext_dynamics` / `ext_mesh` / `ext_sample` (extensions — not under `mps`)
 
 ## Key Coding Conventions
 
@@ -96,7 +98,7 @@ Abstract interface (`IWindow`) + factory method (`Create()`) + separate `_native
 ```
 
 Types: `feat` | `fix` | `refactor` | `docs` | `style` | `test` | `chore`
-Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_newton` | `ext_dynamics` | `ext_mesh` | `ext_sample` | *(omit for project-wide)*
+Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` | `core_render` | `core_simulate` | `core_system` | `ext_newton` | `ext_avbd` | `ext_dynamics` | `ext_mesh` | `ext_sample` | *(omit for project-wide)*
 
 ## Module Reference Documentation
 
@@ -106,7 +108,7 @@ Scope (optional): `core_util` | `core_platform` | `core_gpu` | `core_database` |
 2. **DO NOT** read source files (`.h`, `.cpp`) to understand a module's structure or API. The docs already have this information and reading source files wastes tokens.
 3. **ONLY** read actual source files when you need to see implementation details for a specific function or need to edit the file.
 
-Doc files: `.claude/docs/core_util.md`, `core_platform.md`, `core_gpu.md`, `core_database.md`, `core_render.md`, `core_simulate.md`, `core_system.md`, `ext_newton.md`, `ext_dynamics.md`, `ext_mesh.md`, `ext_sample.md`
+Doc files: `.claude/docs/core_util.md`, `core_platform.md`, `core_gpu.md`, `core_database.md`, `core_render.md`, `core_simulate.md`, `core_system.md`, `ext_newton.md`, `ext_avbd.md`, `ext_dynamics.md`, `ext_mesh.md`, `ext_sample.md`
 
 Agent files (`.claude/agents/*.md`) contain task instructions and workflow guidelines. Use `/sync-docs` to keep documentation synchronized with the codebase.
 

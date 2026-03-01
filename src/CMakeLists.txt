@@ -43,6 +43,7 @@ target_link_libraries(mps_dawn PRIVATE
     mps::ext_newton
     mps::ext_mesh
     mps::ext_dynamics
+    mps::ext_avbd
 )
 
 # Asset file handling

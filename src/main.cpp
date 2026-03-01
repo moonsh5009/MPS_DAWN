@@ -1,6 +1,8 @@
 #include "core_system/system.h"
 #include "ext_newton/newton_extension.h"
 #include "ext_newton/newton_system_config.h"
+#include "ext_avbd/avbd_extension.h"
+#include "ext_avbd/avbd_system_config.h"
 #include "ext_mesh/mesh_extension.h"
 #include "ext_mesh/mesh_generator.h"
 #include "ext_dynamics/dynamics_extension.h"
@@ -19,32 +21,53 @@ int main() {
     System system;
     if (!system.Initialize()) return 1;
 
-    // Extensions: dynamics (data + GPU arrays), mesh (rendering), newton
+    // Extensions: dynamics (data + GPU arrays), mesh (rendering), newton, avbd
     system.AddExtension(std::make_unique<ext_dynamics::DynamicsExtension>(system));
     system.AddExtension(std::make_unique<ext_mesh::MeshExtension>(system));
     system.AddExtension(std::make_unique<ext_newton::NewtonExtension>(system));
+    system.AddExtension(std::make_unique<ext_avbd::AVBDExtension>(system));
 
     system.Transact([&](Database& db) {
         // ---- Global physics params (singleton) ----
         db.SetSingleton<GlobalPhysicsParams>(
             {1.0f / 120.0f, {0.0f, -9.81f, 0.0f}, 0.999f});
 
-        // ---- Mesh 1: Newton solver ----
-        auto mesh1 = ext_mesh::CreateGrid(db, 64, 64, 0.025f, {-1.0f, 0.0f, 0.0f});
+        // // ---- Mesh 1: Newton solver (left) ----
+        // auto mesh1 = ext_mesh::ImportOBJ(db, "dragon.obj", 10.0, { -5.0f, 0.0f, 0.0f });
+        // // auto mesh1 = ext_mesh::CreateGrid(db, 64, 64, 0.025f, {-1.0f, 0.0f, 0.0f});
 
-        ext_dynamics::BuildAreaConstraints(db, mesh1.mesh_entity, 500000.0f, 500000.0f);
-        ext_mesh::PinVertices(db, mesh1.mesh_entity, {0});
+        // // ext_dynamics::BuildSpringConstraints(db, mesh1.mesh_entity, 500000.0f);
+        // ext_dynamics::BuildAreaConstraints(db, mesh1.mesh_entity, 500000.0f, 500000.0f);
+        // ext_mesh::PinVertices(db, mesh1.mesh_entity, {0});
 
-        // ---- Newton config -> mesh1 ----
-        ext_newton::NewtonSystemConfig newton_cfg{};
-        newton_cfg.newton_iterations = 5;
-        newton_cfg.cg_max_iterations = 100;
-        newton_cfg.mesh_entity = mesh1.mesh_entity;
-        newton_cfg.constraint_count = 1;
-        newton_cfg.constraint_entities[0] = mesh1.mesh_entity;
+        // // ---- Newton config -> mesh1 ----
+        // ext_newton::NewtonSystemConfig newton_cfg{};
+        // newton_cfg.newton_iterations = 5;
+        // newton_cfg.cg_max_iterations = 100;
+        // newton_cfg.mesh_entity = mesh1.mesh_entity;
+        // newton_cfg.constraint_count = 1;
+        // newton_cfg.constraint_entities[0] = mesh1.mesh_entity;
 
-        Entity newton_e = db.CreateEntity();
-        db.AddComponent<ext_newton::NewtonSystemConfig>(newton_e, newton_cfg);
+        // Entity newton_e = db.CreateEntity();
+        // db.AddComponent<ext_newton::NewtonSystemConfig>(newton_e, newton_cfg);
+
+        // ---- Mesh 2: AVBD solver ----
+        auto mesh2 = ext_mesh::ImportOBJ(db, "dragon.obj", 10.0, { 5.0f, 0.0f, 0.0f }, 1.0);
+        // auto mesh2 = ext_mesh::CreateGrid(db, 64, 64, 0.025f, {1.0f, 0.0f, 0.0f});
+
+        ext_dynamics::BuildSpringConstraints(db, mesh2.mesh_entity, 500000.0f);
+        ext_dynamics::BuildAreaConstraints(db, mesh2.mesh_entity, 500000.0f, 500000.0f);
+        ext_mesh::PinVertices(db, mesh2.mesh_entity, {0});
+
+        // ---- AVBD config -> mesh2 ----
+        ext_avbd::AVBDSystemConfig avbd_cfg{};
+        avbd_cfg.avbd_iterations = 30;
+        avbd_cfg.mesh_entity = mesh2.mesh_entity;
+        avbd_cfg.constraint_count = 1;
+        avbd_cfg.constraint_entities[0] = mesh2.mesh_entity;
+
+        Entity avbd_e = db.CreateEntity();
+        db.AddComponent<ext_avbd::AVBDSystemConfig>(avbd_e, avbd_cfg);
     });
 
     system.SetSimulationRunning(true);

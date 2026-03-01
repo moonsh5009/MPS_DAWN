@@ -10,12 +10,34 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <set>
+#include <utility>
 
 using namespace mps;
 using namespace mps::simulate;
 using namespace mps::database;
 
 namespace ext_mesh {
+
+// Extract unique edges from face topology
+static std::vector<MeshEdge> ExtractUniqueEdges(const std::vector<MeshFace>& faces) {
+    std::set<std::pair<uint32, uint32>> edge_set;
+    auto add_edge = [&](uint32 a, uint32 b) {
+        if (a > b) std::swap(a, b);
+        edge_set.insert({a, b});
+    };
+    for (const auto& face : faces) {
+        add_edge(face.n0, face.n1);
+        add_edge(face.n1, face.n2);
+        add_edge(face.n0, face.n2);
+    }
+    std::vector<MeshEdge> edges;
+    edges.reserve(edge_set.size());
+    for (const auto& [a, b] : edge_set) {
+        edges.push_back({a, b});
+    }
+    return edges;
+}
 
 MeshResult CreateGrid(Database& db,
                       uint32 width, uint32 height, float32 spacing,
@@ -75,19 +97,24 @@ MeshResult CreateGrid(Database& db,
         }
     }
 
+    // Extract unique edges from faces
+    auto mesh_edges = ExtractUniqueEdges(faces);
+    uint32 edge_count = static_cast<uint32>(mesh_edges.size());
+
     // Create entity with mesh data
     Entity mesh_e = db.CreateEntity();
 
     MeshComponent mesh_comp{};
     mesh_comp.vertex_count = node_count;
     mesh_comp.face_count = face_count;
-    mesh_comp.edge_count = 0;
+    mesh_comp.edge_count = edge_count;
     db.AddComponent<MeshComponent>(mesh_e, mesh_comp);
 
     db.SetArray<SimPosition>(mesh_e, std::move(positions));
     db.SetArray<SimVelocity>(mesh_e, std::move(velocities));
     db.SetArray<SimMass>(mesh_e, std::move(masses));
     db.SetArray<MeshFace>(mesh_e, std::move(faces));
+    db.SetArray<MeshEdge>(mesh_e, std::move(mesh_edges));
 
     MeshResult result;
     result.mesh_entity = mesh_e;
@@ -196,19 +223,24 @@ MeshResult ImportOBJ(Database& db, const std::string& filepath, float32 scale,
     // Zero velocities
     std::vector<SimVelocity> velocities(node_count);
 
+    // Extract unique edges from faces
+    auto mesh_edges = ExtractUniqueEdges(faces);
+    uint32 edge_count_val = static_cast<uint32>(mesh_edges.size());
+
     // Create entity with mesh data
     Entity mesh_e = db.CreateEntity();
 
     MeshComponent mesh_comp{};
     mesh_comp.vertex_count = node_count;
     mesh_comp.face_count = face_count;
-    mesh_comp.edge_count = 0;
+    mesh_comp.edge_count = edge_count_val;
     db.AddComponent<MeshComponent>(mesh_e, mesh_comp);
 
     db.SetArray<SimPosition>(mesh_e, std::move(positions));
     db.SetArray<SimVelocity>(mesh_e, std::move(velocities));
     db.SetArray<SimMass>(mesh_e, std::move(masses));
     db.SetArray<MeshFace>(mesh_e, std::move(faces));
+    db.SetArray<MeshEdge>(mesh_e, std::move(mesh_edges));
 
     result.mesh_entity = mesh_e;
     result.node_count = node_count;

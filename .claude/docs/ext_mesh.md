@@ -21,6 +21,7 @@ extensions/ext_mesh/
 | Type | Header | Description |
 |------|--------|-------------|
 | `MeshFace` | `mesh_types.h` | `alignas(16) {n0, n1, n2}` — 16 bytes, GPU-compatible triangle face |
+| `MeshEdge` | `mesh_types.h` | `{n0, n1}` — 8 bytes, GPU-compatible edge topology |
 | `FixedVertex` | `mesh_types.h` | `{vertex_index, original_mass, original_inv_mass}` — host-only |
 | `MeshComponent` | `mesh_component.h` | Host-only metadata: `{vertex_count, face_count, edge_count}` |
 | `MeshExtension` | `mesh_extension.h` | IExtension: registers MeshPostProcessor + MeshRenderer |
